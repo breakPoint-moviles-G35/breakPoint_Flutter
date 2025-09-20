@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../routes/app_router';
 
 class ReservationDialog extends StatelessWidget {
   const ReservationDialog({super.key});
@@ -93,6 +94,7 @@ class ReservationDialog extends StatelessWidget {
                 ),
                 onPressed: () {
                   Navigator.pop(context);
+                  Navigator.pushReplacementNamed(context, AppRouter.reservations);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content: Text("Reservation confirmed for Loft Bogotá!")),

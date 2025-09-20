@@ -1,0 +1,81 @@
+import 'package:flutter/material.dart';
+import '../../routes/app_router';
+import '../widgets/space_card'; // <-- reutilizamos SpaceCard
+
+class ReservationsScreen extends StatelessWidget {
+  const ReservationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // mock de reservas para UI
+    final reservations = [
+      {'title': 'Casa #1', 'rating': 4.96, 'address': 'Dirección: Modelia', 'hour': 'Horas reservadas: 15:00-18:00', 'image': 'https://a0.muscache.com/im/pictures/19eadf18-6546-4f11-a9dc-cdd0ebd0c6b6.jpg?im_w=1200',},
+      {'title': 'Casa #2', 'rating': 4.80, 'address': 'Dirección: Tunal', 'hour': 'Horas reservadas: 9:00-12:00', 'image': 'https://a0.muscache.com/im/pictures/hosting/Hosting-1365485833225852450/original/25a0b177-ffec-48d5-b5b9-d67af0195088.jpeg?im_w=1200',},
+    ];
+
+    InputDecoration _searchDecoration() => InputDecoration(
+      hintText: 'Reservas',
+      prefixIcon: const Icon(Icons.search, size: 20),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: const BorderSide(color: Colors.black12),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: const BorderSide(color: Colors.black54, width: 1),
+      ),
+    );
+
+    return Scaffold(
+      // AppBar tipo Explore con buscador
+      appBar: AppBar(
+        title: TextField(decoration: _searchDecoration()),
+        centerTitle: true,
+        toolbarHeight: 64,
+      ),
+
+      // Tarjetas GRANDES como Explore, pero mostrando Address/Hour en vez de precio
+      body: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        itemCount: reservations.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
+        itemBuilder: (context, i) {
+          final r = reservations[i];
+          return SpaceCard(
+            title: r['title'] as String,
+            subtitle: '',                          // sin subtítulo
+            rating: (r['rating'] as num).toDouble(),
+            priceCOP: null,                         // <- sin precio
+            metaLines: [                            // <- mostramos líneas meta
+              r['address'] as String,
+              r['hour'] as String,
+            ],
+            rightTag: 'xxx',                        // como en Explore
+            imageAspectRatio: 16 / 9,               // mismo formato de imagen
+            onTap: () {},                           // solo UI por ahora
+          );
+        },
+      ),
+
+      // Bottom bar con Reservations seleccionado
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 2,
+        onDestinationSelected: (i) {
+          if (i == 0) {
+            Navigator.pushReplacementNamed(context, AppRouter.explore);
+          } else if (i == 1) {
+            // por ahora sin acción
+          }
+        },
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
+          NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
+        ],
+      ),
+    );
+  }
+}

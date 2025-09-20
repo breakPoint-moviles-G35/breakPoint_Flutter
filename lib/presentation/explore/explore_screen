@@ -16,9 +16,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
   DateTimeRange? _range;
 
   final _spaces = [
-    {'title': 'Nap Room SD-2','subtitle': 'Quiet • 6 min walk • Wi-Fi','rating': 4.7,'price': 15000.0},
-    {'title': 'Private Studio 3','subtitle': 'Secure access • 1–2 ppl','rating': 4.8,'price': 20000.0},
-    {'title': 'Study room E-104','subtitle': 'Desk • Chair • Reliable Wi-Fi','rating': 4.6,'price': 17000.0},
+    {'title': 'Nap Room SD-2','subtitle': 'Quiet • 6 min walk • Wi-Fi','rating': 4.7,'price': 15000.0, 'image': 'https://a0.muscache.com/im/pictures/hosting/Hosting-1429726908347803636/original/63f89e42-c88e-4ff9-8cdd-24672211c05d.jpeg?im_w=1200',},
+    {'title': 'Private Studio 3','subtitle': 'Secure access • 1–2 ppl','rating': 4.8,'price': 20000.0, 'image': 'https://a0.muscache.com/im/pictures/miso/Hosting-1451104447524375716/original/c4f1abe9-49cf-468b-bbfe-841604a22a84.jpeg?im_w=1200',},
+    {'title': 'Study room E-104','subtitle': 'Desk • Chair • Reliable Wi-Fi','rating': 4.6,'price': 17000.0, 'image': 'https://a0.muscache.com/im/pictures/19eadf18-6546-4f11-a9dc-cdd0ebd0c6b6.jpg?im_w=1200',},
   ];
 
   List<Map<String, dynamic>> get _filtered {
@@ -144,6 +144,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
+        onDestinationSelected: (i) {
+        if (i == 2) {
+          Navigator.pushReplacementNamed(context, AppRouter.reservations);}
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
