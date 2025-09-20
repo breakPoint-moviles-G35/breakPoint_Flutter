@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart'; 
 import '../widgets/space_card'; 
 import '../filters/date_filter_screen.dart';
+import '../details/space_detail_screen.dart'; // 👈 import agregado
 import '../../routes/app_router';
 
 class ExploreScreen extends StatefulWidget {
@@ -33,17 +34,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _openFilters() async {
-  final picked = await Navigator.pushNamed(context, AppRouter.filters)
-      as DateTimeRange?; // 👈 casteo del resultado
-  if (picked != null && mounted) {
-    setState(() => _range = picked);
+    final picked = await Navigator.pushNamed(context, AppRouter.filters)
+        as DateTimeRange?; 
+    if (picked != null && mounted) {
+      setState(() => _range = picked);
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar con buscador y botón de filtros (derecha)
       appBar: AppBar(
         title: Container(
           height: 40,
@@ -68,7 +68,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
               ),
               IconButton(
-                onPressed: null, // QR sin acción (o elimínalo)
+                onPressed: null,
                 icon: const Icon(Icons.qr_code_scanner, size: 20),
                 tooltip: 'Scan',
               ),
@@ -77,7 +77,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: _openFilters, // ← abre la pantalla de filtros
+            onPressed: _openFilters,
             icon: const Icon(Icons.tune),
             tooltip: 'Filters',
           ),
@@ -122,7 +122,19 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   subtitle: s['subtitle'] as String,
                   rating: (s['rating'] as double),
                   priceCOP: (s['price'] as double),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SpaceDetailScreen(
+                          title: s['title'] as String,
+                          subtitle: s['subtitle'] as String,
+                          rating: (s['rating'] as double),
+                          price: (s['price'] as double),
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
