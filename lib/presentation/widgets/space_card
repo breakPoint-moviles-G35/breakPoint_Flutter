@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+// Si luego quieres caché de red, ver la nota al final (cached_network_image)
 
 class SpaceCard extends StatelessWidget {
   final String title;
   final String subtitle;
-  final double rating;   // 4.7
-  final double priceCOP; // 15000
+  final double rating;
+  final double? priceCOP;
+  final List<String>? metaLines;
+  final String rightTag;
+  final double imageAspectRatio;
+
+  // NUEVO: fuente de imagen (elige una)
+  final String? imageUrl;   // para imágenes por URL
+  final String? assetImage; // para imágenes locales en assets/
+
   final VoidCallback? onTap;
 
   const SpaceCard({
@@ -12,65 +21,89 @@ class SpaceCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.rating,
-    required this.priceCOP,
+    this.priceCOP,
+    this.metaLines,
+    this.rightTag = 'xxx',
+    this.imageAspectRatio = 16 / 9,
+    this.imageUrl,
+    this.assetImage,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(12);
+
+    Widget _buildImage() {
+      final img = imageUrl != null
+          ? Image.network(imageUrl!, fit: BoxFit.cover)
+          : (assetImage != null
+              ? Image.asset(assetImage!, fit: BoxFit.cover)
+              : Container(color: const Color(0xFFE6E4E8))); // placeholder
+
+      return ClipRRect(
+        borderRadius: BorderRadius.only(
+          topLeft: radius.topLeft,
+          topRight: radius.topRight,
+        ),
+        child: AspectRatio(aspectRatio: imageAspectRatio, child: img),
+      );
+    }
+
     return Card(
       elevation: 0,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: radius),
       child: InkWell(
         onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Placeholder de imagen (gris) 16:9
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Container(color: Colors.black12),
-            ),
+            _buildImage(),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título + ⭐ rating + a la derecha
                   Row(
                     children: [
                       Expanded(
                         child: Text(
                           title,
                           style: const TextStyle(fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const Icon(Icons.star, size: 16),
                       const SizedBox(width: 4),
                       Text(rating.toStringAsFixed(1)),
                       const SizedBox(width: 12),
-                      const Text('xxx', style: TextStyle(color: Colors.black54)),
+                      Text(rightTag, style: const TextStyle(color: Colors.black54)),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  // Subtítulo gris
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: Colors.black54, height: 1.2),
-                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(color: Colors.black54, height: 1.2)),
+                  ],
                   const SizedBox(height: 6),
-                  // Precio subrayado
-                  Text(
-                    '\$${priceCOP.toStringAsFixed(0)}X X X',
-                    style: const TextStyle(
-                      decoration: TextDecoration.underline,
-                      fontWeight: FontWeight.w600,
+                  if (metaLines != null && metaLines!.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: metaLines!
+                          .map((t) => Text(t, style: const TextStyle(color: Colors.black54)))
+                          .toList(),
+                    )
+                  else if (priceCOP != null)
+                    Text(
+                      '\$${priceCOP!.toStringAsFixed(0)}X X X',
+                      style: const TextStyle(
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
