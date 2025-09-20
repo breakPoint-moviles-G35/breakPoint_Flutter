@@ -3,4 +3,5 @@ class AppRouter {
   static const String explore = '/explore';
   static const String filters = '/filters';
   static const String reservations  = '/reservations'; 
+  static const String spaceDetail = '/spaceDetail';
 }
