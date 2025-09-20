@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
-import '../widgets/space_card';
+import 'package:flutter/material.dart'; 
+import '../widgets/space_card'; 
+import '../filters/date_filter_screen.dart';
+import '../../routes/app_router';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
-
   @override
   State<ExploreScreen> createState() => _ExploreScreenState();
 }
@@ -11,43 +12,38 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   bool _sortAsc = true;
+  DateTimeRange? _range;
 
   final _spaces = [
-    {
-      'title': 'Nap Room SD-2',
-      'subtitle': 'Quiet • 6 min walk • Wi-Fi',
-      'rating': 4.7,
-      'price': 15000.0
-    },
-    {
-      'title': 'Private Studio 3',
-      'subtitle': 'Secure access • 1–2 ppl',
-      'rating': 4.8,
-      'price': 20000.0
-    },
-    {
-      'title': 'Study room E-104',
-      'subtitle': 'Desk • Chair • Reliable Wi-Fi',
-      'rating': 4.6,
-      'price': 17000.0
-    },
+    {'title': 'Nap Room SD-2','subtitle': 'Quiet • 6 min walk • Wi-Fi','rating': 4.7,'price': 15000.0},
+    {'title': 'Private Studio 3','subtitle': 'Secure access • 1–2 ppl','rating': 4.8,'price': 20000.0},
+    {'title': 'Study room E-104','subtitle': 'Desk • Chair • Reliable Wi-Fi','rating': 4.6,'price': 17000.0},
   ];
 
   List<Map<String, dynamic>> get _filtered {
     final q = _searchCtrl.text.trim().toLowerCase();
-    final list = _spaces
-        .where((s) => s['title'].toString().toLowerCase().contains(q))
-        .toList();
+    final list = _spaces.where((s) => s['title'].toString().toLowerCase().contains(q)).toList();
     list.sort((a, b) => _sortAsc
         ? (a['price'] as double).compareTo(b['price'] as double)
         : (b['price'] as double).compareTo(a['price'] as double));
     return list;
   }
 
+  String _fmt(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _openFilters() async {
+  final picked = await Navigator.pushNamed(context, AppRouter.filters)
+      as DateTimeRange?; // 👈 casteo del resultado
+  if (picked != null && mounted) {
+    setState(() => _range = picked);
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar con buscador redondeado + icono QR
+      // AppBar con buscador y botón de filtros (derecha)
       appBar: AppBar(
         title: Container(
           height: 40,
@@ -66,13 +62,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   controller: _searchCtrl,
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
-                    hintText: 'Lorem ipsum?',
+                    hintText: 'Buscar...',
                     border: InputBorder.none,
                   ),
                 ),
               ),
               IconButton(
-                onPressed: () {},
+                onPressed: null, // QR sin acción (o elimínalo)
                 icon: const Icon(Icons.qr_code_scanner, size: 20),
                 tooltip: 'Scan',
               ),
@@ -81,8 +77,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.tune), // icono de filtros
+            onPressed: _openFilters, // ← abre la pantalla de filtros
+            icon: const Icon(Icons.tune),
             tooltip: 'Filters',
           ),
           const SizedBox(width: 4),
@@ -92,21 +88,28 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
       body: Column(
         children: [
-          // Botón "Sort by price" estilo píldora
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                onPressed: () => setState(() => _sortAsc = !_sortAsc),
-                child: const Text('Sort by price'),
-              ),
+          // Botón sort + chip del rango seleccionado
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                  onPressed: () => setState(() => _sortAsc = !_sortAsc),
+                  child: const Text('Sort by price'),
+                ),
+                const SizedBox(width: 8),
+                if (_range != null)
+                  InputChip(
+                    label: Text('${_fmt(_range!.start)} – ${_fmt(_range!.end)}'),
+                    onDeleted: () => setState(() => _range = null),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
 
-          // Lista de cards como en Figma
+          // Lista de cards
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -119,7 +122,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   subtitle: s['subtitle'] as String,
                   rating: (s['rating'] as double),
                   priceCOP: (s['price'] as double),
-                  onTap: () {}, // aquí navegarías al detalle
+                  onTap: () {},
                 );
               },
             ),
@@ -127,10 +130,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ],
       ),
 
-      // Bottom nav como en el Figma
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
-        destinations: [
+        destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
           NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
