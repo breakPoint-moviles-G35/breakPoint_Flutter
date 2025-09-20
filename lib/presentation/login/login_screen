@@ -28,7 +28,7 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Inicio de sesion', style: TextStyle(fontWeight: FontWeight.w500)),
+        title: const Text('Inicio de sesión', style: TextStyle(fontWeight: FontWeight.w500)),
       ),
       body: SafeArea(
         child: Form(
@@ -59,7 +59,7 @@ class LoginScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: Color(0xFF5C1B6C),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
@@ -78,7 +78,7 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
       ),
-      backgroundColor: const Color(0xFF5C1B6C), // opcional: leve tono claro como en tu emulador
+      backgroundColor: const Color(0xFFFFFFFF), // opcional: leve tono claro como en tu emulador
     );
   }
 }

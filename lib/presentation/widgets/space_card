@@ -37,7 +37,7 @@ class SpaceCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título + ⭐ rating + “xxx” a la derecha
+                  // Título + ⭐ rating + a la derecha
                   Row(
                     children: [
                       Expanded(
