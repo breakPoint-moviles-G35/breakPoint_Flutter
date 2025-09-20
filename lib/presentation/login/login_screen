@@ -1,0 +1,84 @@
+import 'package:flutter/material.dart';
+import '../../routes/app_router';
+
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    final passCtrl  = TextEditingController();
+    final formKey   = GlobalKey<FormState>();
+
+    InputDecoration inputStyle(String hint) => InputDecoration(
+      hintText: hint,                                     // "Lorem Ipsum"
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.black12),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.black54, width: 1),
+      ),
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text('Inicio de sesion', style: TextStyle(fontWeight: FontWeight.w500)),
+      ),
+      body: SafeArea(
+        child: Form(
+          key: formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+            children: [
+              const SizedBox(height: 8),
+              // Campo 1
+              TextFormField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: inputStyle('email'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 16),
+              // Campo 2
+              TextFormField(
+                controller: passCtrl,
+                obscureText: true,
+                decoration: inputStyle('contrasena'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 20),
+              // Botón negro ancho completo
+              SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    if (!formKey.currentState!.validate()) return;
+                    Navigator.pushReplacementNamed(context, AppRouter.explore);
+                  },
+                  child: const Text(
+                    'Ingresar',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: const Color(0xFF5C1B6C), // opcional: leve tono claro como en tu emulador
+    );
+  }
+}

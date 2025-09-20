@@ -1,0 +1,141 @@
+import 'package:flutter/material.dart';
+import '../widgets/space_card';
+
+class ExploreScreen extends StatefulWidget {
+  const ExploreScreen({super.key});
+
+  @override
+  State<ExploreScreen> createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends State<ExploreScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  bool _sortAsc = true;
+
+  final _spaces = [
+    {
+      'title': 'Nap Room SD-2',
+      'subtitle': 'Quiet • 6 min walk • Wi-Fi',
+      'rating': 4.7,
+      'price': 15000.0
+    },
+    {
+      'title': 'Private Studio 3',
+      'subtitle': 'Secure access • 1–2 ppl',
+      'rating': 4.8,
+      'price': 20000.0
+    },
+    {
+      'title': 'Study room E-104',
+      'subtitle': 'Desk • Chair • Reliable Wi-Fi',
+      'rating': 4.6,
+      'price': 17000.0
+    },
+  ];
+
+  List<Map<String, dynamic>> get _filtered {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    final list = _spaces
+        .where((s) => s['title'].toString().toLowerCase().contains(q))
+        .toList();
+    list.sort((a, b) => _sortAsc
+        ? (a['price'] as double).compareTo(b['price'] as double)
+        : (b['price'] as double).compareTo(a['price'] as double));
+    return list;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // AppBar con buscador redondeado + icono QR
+      appBar: AppBar(
+        title: Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.black12),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 10),
+              const Icon(Icons.search, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    hintText: 'Lorem ipsum?',
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.qr_code_scanner, size: 20),
+                tooltip: 'Scan',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.tune), // icono de filtros
+            tooltip: 'Filters',
+          ),
+          const SizedBox(width: 4),
+        ],
+        centerTitle: true,
+      ),
+
+      body: Column(
+        children: [
+          // Botón "Sort by price" estilo píldora
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                onPressed: () => setState(() => _sortAsc = !_sortAsc),
+                child: const Text('Sort by price'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Lista de cards como en Figma
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              itemCount: _filtered.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, i) {
+                final s = _filtered[i];
+                return SpaceCard(
+                  title: s['title'] as String,
+                  subtitle: s['subtitle'] as String,
+                  rating: (s['rating'] as double),
+                  priceCOP: (s['price'] as double),
+                  onTap: () {}, // aquí navegarías al detalle
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+
+      // Bottom nav como en el Figma
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 0,
+        destinations: [
+          NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
+          NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
+        ],
+      ),
+    );
+  }
+}

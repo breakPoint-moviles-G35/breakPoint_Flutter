@@ -1,0 +1,79 @@
+import 'package:flutter/material.dart';
+
+class SpaceCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final double rating;   // 4.7
+  final double priceCOP; // 15000
+  final VoidCallback? onTap;
+
+  const SpaceCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.rating,
+    required this.priceCOP,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Placeholder de imagen (gris) 16:9
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Container(color: Colors.black12),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Título + ⭐ rating + “xxx” a la derecha
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const Icon(Icons.star, size: 16),
+                      const SizedBox(width: 4),
+                      Text(rating.toStringAsFixed(1)),
+                      const SizedBox(width: 12),
+                      const Text('xxx', style: TextStyle(color: Colors.black54)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Subtítulo gris
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.black54, height: 1.2),
+                  ),
+                  const SizedBox(height: 6),
+                  // Precio subrayado
+                  Text(
+                    '\$${priceCOP.toStringAsFixed(0)}X X X',
+                    style: const TextStyle(
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
