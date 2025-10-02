@@ -1,48 +1,25 @@
-import 'package:flutter/material.dart'; 
-import '../widgets/space_card'; 
-import '../filters/date_filter_screen.dart';
-import '../details/space_detail_screen.dart'; // 👈 import agregado
-import '../../routes/app_router';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class ExploreScreen extends StatefulWidget {
+import 'package:breakpoint/routes/app_router.dart';
+import 'package:breakpoint/presentation/widgets/space_card.dart';
+import 'package:breakpoint/presentation/details/space_detail_screen.dart';
+import 'package:breakpoint/presentation/explore/viewmodel/explore_viewmodel.dart';
+
+class ExploreScreen extends StatelessWidget {
   const ExploreScreen({super.key});
-  @override
-  State<ExploreScreen> createState() => _ExploreScreenState();
-}
 
-class _ExploreScreenState extends State<ExploreScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  bool _sortAsc = true;
-  DateTimeRange? _range;
-
-  final _spaces = [
-    {'title': 'Nap Room SD-2','subtitle': 'Quiet • 6 min walk • Wi-Fi','rating': 4.7,'price': 15000.0, 'image': 'https://a0.muscache.com/im/pictures/hosting/Hosting-1429726908347803636/original/63f89e42-c88e-4ff9-8cdd-24672211c05d.jpeg?im_w=1200',},
-    {'title': 'Private Studio 3','subtitle': 'Secure access • 1–2 ppl','rating': 4.8,'price': 20000.0, 'image': 'https://a0.muscache.com/im/pictures/miso/Hosting-1451104447524375716/original/c4f1abe9-49cf-468b-bbfe-841604a22a84.jpeg?im_w=1200',},
-    {'title': 'Study room E-104','subtitle': 'Desk • Chair • Reliable Wi-Fi','rating': 4.6,'price': 17000.0, 'image': 'https://a0.muscache.com/im/pictures/19eadf18-6546-4f11-a9dc-cdd0ebd0c6b6.jpg?im_w=1200',},
-  ];
-
-  List<Map<String, dynamic>> get _filtered {
-    final q = _searchCtrl.text.trim().toLowerCase();
-    final list = _spaces.where((s) => s['title'].toString().toLowerCase().contains(q)).toList();
-    list.sort((a, b) => _sortAsc
-        ? (a['price'] as double).compareTo(b['price'] as double)
-        : (b['price'] as double).compareTo(a['price'] as double));
-    return list;
-  }
-
-  String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  Future<void> _openFilters() async {
-    final picked = await Navigator.pushNamed(context, AppRouter.filters)
-        as DateTimeRange?; 
-    if (picked != null && mounted) {
-      setState(() => _range = picked);
+  Future<void> _openFilters(BuildContext context, ExploreViewModel vm) async {
+    final picked = await Navigator.pushNamed(context, AppRouter.filters) as DateTimeRange?;
+    if (picked != null) {
+      vm.setStartEndFromRange(picked); // <<<<<< cambia aquí
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<ExploreViewModel>();
+
     return Scaffold(
       appBar: AppBar(
         title: Container(
@@ -59,8 +36,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
-                  controller: _searchCtrl,
-                  onChanged: (_) => setState(() {}),
+                  controller: vm.searchCtrl,
+                  onChanged: vm.onQueryChanged,
                   decoration: const InputDecoration(
                     hintText: 'Buscar...',
                     border: InputBorder.none,
@@ -77,7 +54,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: _openFilters,
+            onPressed: () => _openFilters(context, vm),
             icon: const Icon(Icons.tune),
             tooltip: 'Filters',
           ),
@@ -88,51 +65,58 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
       body: Column(
         children: [
-          // Botón sort + chip del rango seleccionado
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Row(
               children: [
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                  onPressed: () => setState(() => _sortAsc = !_sortAsc),
+                  onPressed: vm.toggleSort,
                   child: const Text('Sort by price'),
                 ),
                 const SizedBox(width: 8),
-                if (_range != null)
+                if (vm.hasRange)
                   InputChip(
-                    label: Text('${_fmt(_range!.start)} – ${_fmt(_range!.end)}'),
-                    onDeleted: () => setState(() => _range = null),
+                    label: Text('${vm.fmtIsoDay(vm.start!)} – ${vm.fmtIsoDay(vm.end!)}'),
+                    onDeleted: () => vm.setStartEndFromRange(null),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 8),
 
-          // Lista de cards
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              itemCount: _filtered.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, i) {
-                final s = _filtered[i];
-                return SpaceCard(
-                  title: s['title'] as String,
-                  subtitle: s['subtitle'] as String,
-                  rating: (s['rating'] as double),
-                  priceCOP: (s['price'] as double),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SpaceDetailScreen(
-                          title: s['title'] as String,
-                          subtitle: s['subtitle'] as String,
-                          rating: (s['rating'] as double),
-                          price: (s['price'] as double),
-                        ),
-                      ),
+            child: Builder(
+              builder: (_) {
+                if (vm.isLoading) return const Center(child: CircularProgressIndicator());
+                if (vm.error != null) return Center(child: Text(vm.error!));
+                if (vm.spaces.isEmpty) return const Center(child: Text('No hay espacios'));
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: vm.spaces.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, i) {
+                    final s = vm.spaces[i];
+                    return SpaceCard(
+                      title: s.title,
+                      subtitle: s.subtitle,
+                      rating: s.rating,
+                      priceCOP: s.price,
+                      imageUrl: s.imageUrl,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SpaceDetailScreen(
+                              title: s.title,
+                              subtitle: s.subtitle,
+                              rating: s.rating,
+                              price: s.price,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -145,8 +129,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         onDestinationSelected: (i) {
-        if (i == 2) {
-          Navigator.pushReplacementNamed(context, AppRouter.reservations);}
+          if (i == 2) Navigator.pushReplacementNamed(context, AppRouter.reservations);
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),

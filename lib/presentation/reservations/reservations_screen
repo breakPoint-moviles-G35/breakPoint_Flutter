@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../routes/app_router';
-import '../widgets/space_card'; // <-- reutilizamos SpaceCard
+import 'package:breakpoint/routes/app_router.dart';
+import 'package:breakpoint/presentation/widgets/space_card.dart'; // <-- reutilizamos SpaceCard
 
 class ReservationsScreen extends StatelessWidget {
   const ReservationsScreen({super.key});

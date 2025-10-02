@@ -1,0 +1,10 @@
+import '../entities/space.dart';
+
+abstract class SpaceRepository {
+  Future<List<Space>> search({
+    String query,
+    bool sortAsc,
+    String? start,
+    String? end,
+  });
+}

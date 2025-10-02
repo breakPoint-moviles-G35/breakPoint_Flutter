@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../routes/app_router';
+import 'package:breakpoint/routes/app_router.dart';
 
 class ReservationDialog extends StatelessWidget {
   const ReservationDialog({super.key});
