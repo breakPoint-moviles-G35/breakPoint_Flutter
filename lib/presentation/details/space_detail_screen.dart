@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/space.dart';
-import 'reservation_dialog.dart';
+import '../reservations/reservation_screen.dart';
 
 class SpaceDetailScreen extends StatelessWidget {
   final Space space;
@@ -219,9 +219,18 @@ class SpaceDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => ReservationDialog(space: space),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ReservationScreen(
+                    spaceTitle: space.title,
+                    spaceAddress: '123 Business District, Suite 456, City Center',
+                    spaceRating: space.rating,
+                    reviewCount: 127,
+                    pricePerHour: space.price / 24, // Convertir precio por noche a precio por hora
+                    spaceId: space.id,
+                  ),
+                ),
               );
             },
             child: const Text("Reserve",
