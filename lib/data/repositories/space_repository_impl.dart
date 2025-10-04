@@ -1,4 +1,5 @@
 import '../../domain/entities/space.dart';
+import '../../domain/entities/space_detail.dart';
 import '../../domain/repositories/space_repository.dart';
 import '../services/space_api.dart';
 
@@ -28,5 +29,11 @@ class SpaceRepositoryImpl implements SpaceRepository {
   Future<Space> getById(String id) async {
     final j = await api.getSpaceById(id);
     return Space.fromJson(j);
+  }
+
+  @override
+  Future<SpaceDetail> getSpaceDetails(String id) async {
+    final data = await api.getSpaceDetails(id);
+    return SpaceDetail.fromJson(data);
   }
 }

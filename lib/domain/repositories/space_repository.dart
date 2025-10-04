@@ -1,4 +1,5 @@
 import '../entities/space.dart';
+import '../entities/space_detail.dart';
 
 abstract class SpaceRepository {
   Future<List<Space>> search({
@@ -9,4 +10,6 @@ abstract class SpaceRepository {
   });
 
   Future<Space> getById(String id);
+  
+  Future<SpaceDetail> getSpaceDetails(String id);
 }

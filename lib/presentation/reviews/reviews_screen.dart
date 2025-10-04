@@ -1,40 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:breakpoint/domain/entities/review.dart';
+import 'package:breakpoint/domain/repositories/review_repository.dart';
 
 /// Args para pasar el espacio por Navigator
 class ReviewsArgs {
-  final String spaceId;                // TODO: usa el real
-  final double? initialRatingAvg;      // opcional, por si ya lo tienes del detalle
-  final int? initialTotalReviews;      // opcional
+  final String spaceId;
+  final double? initialRatingAvg;
+  final int? initialTotalReviews;
   ReviewsArgs({required this.spaceId, this.initialRatingAvg, this.initialTotalReviews});
 }
 
-/// Modelo simple para UI (mock). TODO: reemplazar por tu modelo real.
-class ReviewItem {
-  final String author;
-  final int rating; // 1..5
-  final String text;
-  final DateTime createdAt;
-  ReviewItem({required this.author, required this.rating, required this.text, required this.createdAt});
-}
-
-class ReviewsScreen extends StatelessWidget {
+class ReviewsScreen extends StatefulWidget {
   final ReviewsArgs args;
   const ReviewsScreen({super.key, required this.args});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: cuando conectes al back, trae datos usando args.spaceId
-    // final vm = context.watch<ReviewsViewModel>();
-    // vm.load(spaceId: args.spaceId);
+  State<ReviewsScreen> createState() => _ReviewsScreenState();
+}
 
-    // MOCKS (borra cuando conectes)
-    final double ratingAvg = args.initialRatingAvg ?? 4.95; // TODO: summary real
-    final int totalReviews = args.initialTotalReviews ?? 22; // TODO: summary real
-    final items = <ReviewItem>[
-      ReviewItem(author: 'Emma',  rating: 5, text: 'Excelente ubicación y muy limpio.', createdAt: DateTime(2024,12,6)),
-      ReviewItem(author: 'Lucas', rating: 4, text: 'Buen host, volvería sin dudar.',   createdAt: DateTime(2024,11,21)),
-      ReviewItem(author: 'Sara',  rating: 5, text: 'Tal cual las fotos. Recomendado.', createdAt: DateTime(2024,10,2)),
-    ];
+class _ReviewsScreenState extends State<ReviewsScreen> {
+  List<Review> reviews = [];
+  bool isLoading = true;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    try {
+      final repository = context.read<ReviewRepository>();
+      final reviewsData = await repository.getReviewsBySpaceId(widget.args.spaceId);
+      
+      setState(() {
+        reviews = reviewsData;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        error = e.toString();
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadReviews,
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final double ratingAvg = widget.args.initialRatingAvg ?? 
+        (reviews.isNotEmpty ? reviews.map((r) => r.rating).reduce((a, b) => a + b) / reviews.length : 0.0);
+    final int totalReviews = reviews.length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reviews')),
@@ -42,14 +85,21 @@ class ReviewsScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         child: Column(
           children: [
-            _SummaryCard(totalReviews: totalReviews, ratingAvg: ratingAvg),
+            _SummaryCard(totalReviews: totalReviews, ratingAvg: ratingAvg, reviews: reviews),
             const SizedBox(height: 12),
             Expanded(
-              child: ListView.separated(
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, i) => _ReviewTile(item: items[i]),
-              ),
+              child: reviews.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No reviews yet. Be the first to review this space!',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: reviews.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) => _ReviewCard(review: reviews[i]),
+                    ),
             ),
           ],
         ),
@@ -59,88 +109,180 @@ class ReviewsScreen extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  final int totalReviews; final double ratingAvg;
-  const _SummaryCard({required this.totalReviews, required this.ratingAvg});
+  final int totalReviews;
+  final double ratingAvg;
+  final List<Review> reviews;
+
+  const _SummaryCard({
+    required this.totalReviews, 
+    required this.ratingAvg,
+    required this.reviews,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _Kpi(value: '$totalReviews', label: 'Reviews'),
-          Container(width: 1, height: 30, color: Colors.grey[300]),
-          _Kpi(value: ratingAvg.toStringAsFixed(2), label: 'Rating', icon: Icons.star),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '★ ${ratingAvg.toStringAsFixed(1)}',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '$totalReviews reviews',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          // Rating breakdown (opcional)
+          if (totalReviews > 0) ...[
+            Column(
+              children: List.generate(5, (index) {
+                final stars = 5 - index;
+                final count = reviews.where((r) => r.rating == stars).length;
+                final percentage = totalReviews > 0 ? count / totalReviews : 0.0;
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 1),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('$stars', style: const TextStyle(fontSize: 12)),
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 60,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: percentage,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text('$count', style: const TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _Kpi extends StatelessWidget {
-  final String value; final String label; final IconData? icon;
-  const _Kpi({required this.value, required this.label, this.icon});
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      if (icon != null) ...[Icon(icon, size: 18, color: Colors.amber), const SizedBox(width: 6)],
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-      ]),
-    ]);
-  }
-}
+class _ReviewCard extends StatelessWidget {
+  final Review review;
 
-class _ReviewTile extends StatelessWidget {
-  final ReviewItem item;
-  const _ReviewTile({required this.item});
+  const _ReviewCard({required this.review});
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(item.text, style: const TextStyle(fontSize: 14.5, height: 1.35)),
-        const SizedBox(height: 12),
-        Row(children: [
-          const CircleAvatar(radius: 18, backgroundColor: Colors.grey, child: Icon(Icons.person, size: 20, color: Colors.white)),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(item.author, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            Text(_timeAgo(item.createdAt), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          ])),
-          _Stars(rating: item.rating),
-        ]),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.grey[300],
+                child: Text(
+                  review.authorName?.substring(0, 1).toUpperCase() ?? '?',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review.authorName ?? 'Anonymous',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: [
+                        Row(
+                          children: List.generate(5, (index) => 
+                            Icon(
+                              Icons.star,
+                              size: 16,
+                              color: index < review.rating 
+                                  ? Colors.amber 
+                                  : Colors.grey[300],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatDate(review.createdAt),
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (review.comment != null && review.comment!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              review.comment!,
+              style: const TextStyle(fontSize: 15, height: 1.4),
+            ),
+          ],
+        ],
+      ),
     );
   }
-}
 
-class _Stars extends StatelessWidget {
-  final int rating;
-  const _Stars({required this.rating});
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: List.generate(5, (i) {
-      final filled = i < rating;
-      return Icon(filled ? Icons.star : Icons.star_border, size: 18, color: Colors.amber);
-    }));
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return dateString;
+    }
   }
-}
-
-String _timeAgo(DateTime date) {
-  final diff = DateTime.now().difference(date);
-  if (diff.inDays >= 30) { final m = (diff.inDays / 30).floor(); return '$m month${m>1?'s':''} ago'; }
-  if (diff.inDays >= 1) return '${diff.inDays} day${diff.inDays>1?'s':''} ago';
-  if (diff.inHours >= 1) return '${diff.inHours} hour${diff.inHours>1?'s':''} ago';
-  return 'just now';
 }

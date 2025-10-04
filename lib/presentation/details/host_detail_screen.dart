@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
-import 'contact_host_sheet.dart' show HostProfileView; // reutilizamos el modelo simple
-import 'space_detail_screen.dart'; // para navegar al detalle de un espacio
+import 'package:breakpoint/presentation/details/contact_host_sheet.dart'
+    show HostProfileView; // modelo simple del sheet
+import 'package:breakpoint/presentation/details/space_detail_screen.dart';
+import 'package:breakpoint/domain/entities/space.dart'; // <-- entidad Space
 
 class HostDetailScreen extends StatelessWidget {
   final HostProfileView host;
   const HostDetailScreen({super.key, required this.host});
 
   void _goToSampleSpace(BuildContext context) {
+    // TODO: Reemplazar por un Space real del backend/listado del host
+    final sample = Space(
+      id: 'demo-1',
+      title: 'Centre place Graslin',
+      subtitle: 'Private room · La Cambroine',
+      rating: 4.96,
+      price: 220000, // COP
+      imageUrl: '',
+      capacity: 2,
+      amenities: const ['Wi-Fi', 'Desk'],
+      rules: 'No smoking. No pets.', // pon algo simple
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const SpaceDetailScreen(
-          title: 'Centre place Graslin',
-          subtitle: 'Private room · La Cambroine',
-          rating: 4.96,
-          price: 220000, // COP
-        ),
+        builder: (_) => SpaceDetailScreen(space: sample),
       ),
     );
   }
@@ -42,7 +52,9 @@ class HostDetailScreen extends StatelessWidget {
 
           _BulletRow(icon: Icons.cake_outlined, text: host.born),
           const SizedBox(height: 10),
-          _BulletRow(icon: Icons.location_on_outlined, text: 'Lives in ${host.location}'),
+          _BulletRow(
+              icon: Icons.location_on_outlined,
+              text: 'Lives in ${host.location}'),
           const SizedBox(height: 10),
           _BulletRow(icon: Icons.work_outline, text: 'My work: ${host.work}'),
 
@@ -57,9 +69,8 @@ class HostDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Carrusel horizontal de reviews — altura ajustada para evitar overflow
           SizedBox(
-            height: 172, // margen de seguridad anti-overflow
+            height: 172,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: 3, // TODO: cantidad real
@@ -87,7 +98,7 @@ class HostDetailScreen extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(
-              onPressed: () {}, // TODO: acción (link a ayuda)
+              onPressed: () {}, // TODO
               child: const Text(
                 "Learn about identity verification",
                 style: TextStyle(decoration: TextDecoration.underline),
@@ -107,7 +118,7 @@ class HostDetailScreen extends StatelessWidget {
           const SizedBox(height: 10),
 
           SizedBox(
-            height: 246, // +altura para evitar overflow en cards
+            height: 246,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: 2, // TODO: cantidad real
@@ -122,7 +133,8 @@ class HostDetailScreen extends StatelessWidget {
             onPressed: () => _goToSampleSpace(context),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text("Show all 6 rooms"), // TODO: número real
           ),
@@ -131,11 +143,10 @@ class HostDetailScreen extends StatelessWidget {
           Divider(color: Colors.grey[300]),
           const SizedBox(height: 8),
 
-          // Report profile
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(
-              onPressed: () {}, // TODO: acción de reporte
+              onPressed: () {}, // TODO
               child: const Text(
                 "Report this profile",
                 style: TextStyle(
@@ -177,24 +188,25 @@ class _HostCardBig extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar grande
           const CircleAvatar(
             radius: 38,
             backgroundColor: Colors.grey,
             child: Icon(Icons.person, size: 38, color: Colors.white),
           ),
           const SizedBox(width: 14),
-
-          // Nombre + Superhost + KPIs
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(host.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                Text(host.name,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700)),
                 Text(
                   host.isSuperhost ? 'Superhost' : 'Host',
                   style: TextStyle(
-                    color: host.isSuperhost ? Colors.deepPurple : Colors.grey[700],
+                    color: host.isSuperhost
+                        ? Colors.deepPurple
+                        : Colors.grey[700],
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -203,9 +215,17 @@ class _HostCardBig extends StatelessWidget {
                   children: [
                     _Kpi(value: '${host.reviewsCount}', label: 'Reviews'),
                     _MiddleDivider(),
-                    _Kpi(value: host.ratingAvg.toStringAsFixed(2), label: 'Rating', icon: Icons.star),
-                    _MiddleDivider(),
-                    _Kpi(value: '${host.monthsHosting}', label: 'Months hosting'),
+                    // Solo mostrar rating si hay reviews
+                    if (host.reviewsCount > 0) ...[
+                      _Kpi(
+                          value: host.ratingAvg.toStringAsFixed(2),
+                          label: 'Rating',
+                          icon: Icons.star),
+                      _MiddleDivider(),
+                    ],
+                    _Kpi(
+                        value: '${host.monthsHosting}',
+                        label: 'Months hosting'),
                   ],
                 ),
               ],
@@ -244,8 +264,11 @@ class _Kpi extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            Text(value,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(label,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
           ],
         ),
       ],
@@ -280,12 +303,7 @@ class _CheckRow extends StatelessWidget {
       children: [
         const Icon(Icons.check, size: 18, color: Colors.black87),
         const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 14.5),
-          ),
-        ),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 14.5))),
       ],
     );
   }
@@ -297,7 +315,7 @@ class _ReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 260, // un poco más ancho para respirar
+      width: 260,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -334,8 +352,11 @@ class _ReviewCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Emma", style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text("3 months ago", style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                  const Text("Emma",
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text("3 months ago",
+                      style:
+                          TextStyle(color: Colors.grey[600], fontSize: 12)),
                 ],
               ),
             ],
@@ -365,14 +386,14 @@ class _ListingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagen dummy
             Container(
               height: 120,
               decoration: const BoxDecoration(
                 color: Color(0xFFE0E0E0),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
               ),
-              child: const Center(child: Icon(Icons.image, size: 48, color: Colors.white)),
+              child:
+                  const Center(child: Icon(Icons.image, size: 48, color: Colors.white)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
