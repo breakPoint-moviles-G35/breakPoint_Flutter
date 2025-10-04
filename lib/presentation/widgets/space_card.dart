@@ -1,5 +1,5 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-// Si luego quieres caché de red, ver la nota al final (cached_network_image)
 
 class SpaceCard extends StatelessWidget {
   final String title;
@@ -10,9 +10,9 @@ class SpaceCard extends StatelessWidget {
   final String rightTag;
   final double imageAspectRatio;
 
-  // NUEVO: fuente de imagen (elige una)
-  final String? imageUrl;   // para imágenes por URL
-  final String? assetImage; // para imágenes locales en assets/
+  /// Fuente de imagen (elige según tu caso)
+  final String? imageUrl;   // URL http/https o file:///... o ruta local
+  final String? assetImage; // asset declarado en pubspec
 
   final VoidCallback? onTap;
 
@@ -23,9 +23,9 @@ class SpaceCard extends StatelessWidget {
     required this.rating,
     this.priceCOP,
     this.metaLines,
-    this.rightTag = 'xxx',
+    this.rightTag = '',
     this.imageAspectRatio = 16 / 9,
-    this.imageUrl,
+    this.imageUrl ,
     this.assetImage,
     this.onTap,
   });
@@ -33,22 +33,6 @@ class SpaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(12);
-
-    Widget buildImage() {
-      final img = imageUrl != null
-          ? Image.network(imageUrl!, fit: BoxFit.cover)
-          : (assetImage != null
-              ? Image.asset(assetImage!, fit: BoxFit.cover)
-              : Container(color: const Color(0xFFE6E4E8))); // placeholder
-
-      return ClipRRect(
-        borderRadius: BorderRadius.only(
-          topLeft: radius.topLeft,
-          topRight: radius.topRight,
-        ),
-        child: AspectRatio(aspectRatio: imageAspectRatio, child: img),
-      );
-    }
 
     return Card(
       elevation: 0,
@@ -59,7 +43,7 @@ class SpaceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            buildImage(),
+            _buildImage(),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
@@ -77,8 +61,10 @@ class SpaceCard extends StatelessWidget {
                       const Icon(Icons.star, size: 16),
                       const SizedBox(width: 4),
                       Text(rating.toStringAsFixed(1)),
-                      const SizedBox(width: 12),
-                      Text(rightTag, style: const TextStyle(color: Colors.black54)),
+                      if (rightTag.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        Text(rightTag, style: const TextStyle(color: Colors.black54)),
+                      ],
                     ],
                   ),
                   if (subtitle.isNotEmpty) ...[
@@ -95,10 +81,9 @@ class SpaceCard extends StatelessWidget {
                     )
                   else if (priceCOP != null)
                     Text(
-                      '\$${priceCOP!.toStringAsFixed(0)}X X X',
+                      '\$${priceCOP!.toStringAsFixed(0)} COP',
                       style: const TextStyle(
-                        decoration: TextDecoration.underline,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                 ],
@@ -107,6 +92,74 @@ class SpaceCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImage() {
+    final u = imageUrl?.trim();
+
+    bool isHttpUrl(String? s) =>
+        s != null && s.isNotEmpty && (s.startsWith('http://') || s.startsWith('https://'));
+    bool isFileUri(String? s) => s != null && s.startsWith('file://');
+    bool isFilePath(String? s) => s != null && s.isNotEmpty && s.startsWith('/') && !isHttpUrl(s);
+
+    Widget img;
+    if (isHttpUrl(u)) {
+      // URL en red
+      img = Image.network(
+        u!,
+        fit: BoxFit.cover,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return const Center(
+            child: SizedBox(
+              height: 22,
+              width: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+        errorBuilder: (_, __, ___) {
+          debugPrint('Image.network error: $u');
+          return const _ImagePlaceholder();
+        },
+      );
+    } else if (isFileUri(u) || isFilePath(u)) {
+      // Archivo local
+      final path = isFileUri(u) ? u!.replaceFirst(RegExp(r'^file://'), '') : u!;
+      img = Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
+      );
+    } else if (assetImage != null && assetImage!.isNotEmpty) {
+      // Asset
+      img = Image.asset(
+        assetImage!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
+      );
+    } else {
+      // Fallback
+      img = const _ImagePlaceholder();
+    }
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      child: AspectRatio(aspectRatio: imageAspectRatio, child: img),
+    );
+  }
+}
+
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFE6E4E8),
+      alignment: Alignment.center,
+      child: const Icon(Icons.broken_image_outlined, size: 28, color: Colors.black38),
     );
   }
 }
