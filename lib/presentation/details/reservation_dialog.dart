@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:breakpoint/routes/app_router.dart';
+import '../../domain/entities/space.dart';
 
 class ReservationDialog extends StatelessWidget {
-  const ReservationDialog({super.key});
+  final Space space;
+
+  const ReservationDialog({super.key, required this.space});
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +25,10 @@ class ReservationDialog extends StatelessWidget {
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
                 ),
-                const Text("Reservation",
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  "Reservation",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(width: 40),
               ],
             ),
@@ -32,48 +36,69 @@ class ReservationDialog extends StatelessWidget {
 
             const SizedBox(height: 8),
             const Center(
-              child: Text("Details",
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
+              child: Text(
+                "Details",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(height: 16),
 
-            // Info de reserva ficticia
+            // Info de reserva dinámica
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text("Loft Bogotá · 2 hours",
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500)),
-                Text("COP \$40,000",
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500)),
+              children: [
+                Expanded(
+                  child: Text(
+                    "${space.title} · ${space.capacity} guests",
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis, 
+                  ),
+                ),
+                Text(
+                  "COP \$${space.price.toStringAsFixed(0)}",
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
+
+            
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
-                Text("Reserved hours",
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500)),
-                Text("2:30 PM – 4:30 PM",
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500)),
+                Text(
+                  "Reserved hours",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  "2:30 PM – 4:30 PM",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
               ],
             ),
             const SizedBox(height: 12),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
-                Text("Host contact",
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500)),
-                Text("+57 300 123 4567",
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.deepPurple)),
+                Text(
+                  "Host contact",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  "+57 300 123 4567",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.deepPurple,
+                  ),
+                ),
               ],
             ),
 
@@ -86,22 +111,30 @@ class ReservationDialog extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple, // Botón morado
+                  backgroundColor: Colors.deepPurple,
                   padding: const EdgeInsets.symmetric(
-                      vertical: 14, horizontal: 28),
+                    vertical: 14,
+                    horizontal: 28,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.pushReplacementNamed(context, AppRouter.reservations);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text("Reservation confirmed for Loft Bogotá!")),
+                    SnackBar(
+                      content: Text(
+                        "Reservation confirmed for ${space.title}!",
+                      ),
+                    ),
                   );
                 },
-                child: const Text("Confirm reservation",
-                    style: TextStyle(fontSize: 16, color: Colors.white)),
+                child: const Text(
+                  "Confirm reservation",
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
               ),
             )
           ],

@@ -34,7 +34,7 @@ class SpaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(12);
 
-    Widget _buildImage() {
+    Widget buildImage() {
       final img = imageUrl != null
           ? Image.network(imageUrl!, fit: BoxFit.cover)
           : (assetImage != null
@@ -59,7 +59,7 @@ class SpaceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildImage(),
+            buildImage(),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
