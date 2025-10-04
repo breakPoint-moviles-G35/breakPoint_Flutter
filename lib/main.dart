@@ -1,5 +1,6 @@
 import 'package:breakpoint/data/repositories/auth_repository_impl.dart';
 import 'package:breakpoint/data/services/auth_api.dart';
+import 'package:breakpoint/domain/entities/space.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/presentation/explore/explore_screen';
 import 'package:breakpoint/presentation/login/login_screen';
@@ -75,10 +76,17 @@ class MyApp extends StatelessWidget {
         AppRouter.filters: (context) => const DateFilterScreen(),
         AppRouter.reservations: (context) => const ReservationsScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
-          title: 'Sample Space',
-          subtitle: 'A nice place to stay',
-          rating: 4.5,
-          price: 12000.0,
+          space: Space(
+            id: "demo-id",
+            title: "Sample Space",
+            subtitle: "A nice place to stay",
+            price: 12000.0,
+            rating: 4.5,
+            capacity: 2,
+            rules: "No fumar",
+            amenities: ["WiFi", "TV"],
+            imageUrl: "", 
+  ),
         ),
       },
     );

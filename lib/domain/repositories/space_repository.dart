@@ -7,4 +7,6 @@ abstract class SpaceRepository {
     String? start,
     String? end,
   });
+
+  Future<Space> getById(String id);
 }

@@ -12,7 +12,7 @@ class ExploreScreen extends StatelessWidget {
   Future<void> _openFilters(BuildContext context, ExploreViewModel vm) async {
     final picked = await Navigator.pushNamed(context, AppRouter.filters) as DateTimeRange?;
     if (picked != null) {
-      vm.setStartEndFromRange(picked); // <<<<<< cambia aquí
+      vm.setStartEndFromRange(picked); 
     }
   }
 
@@ -100,7 +100,7 @@ class ExploreScreen extends StatelessWidget {
                     final s = vm.spaces[i];
                     return SpaceCard(
                       title: s.title,
-                      subtitle: s.subtitle,
+                      subtitle: s.subtitle ?? '',
                       rating: s.rating,
                       priceCOP: s.price,
                       imageUrl: s.imageUrl,
@@ -108,12 +108,7 @@ class ExploreScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => SpaceDetailScreen(
-                              title: s.title,
-                              subtitle: s.subtitle,
-                              rating: s.rating,
-                              price: s.price,
-                            ),
+                            builder: (_) => SpaceDetailScreen(space: s),
                           ),
                         );
                       },

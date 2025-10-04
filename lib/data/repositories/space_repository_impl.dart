@@ -20,27 +20,13 @@ class SpaceRepositoryImpl implements SpaceRepository {
       end: end,
     );
 
-    return data.map((j) {
-  final dynamic priceRaw = j['price'];
-  final dynamic ratingRaw = j['rating'];
+    // usamos el mapeo de Space.fromJson
+    return data.map((j) => Space.fromJson(j)).toList();
+  }
 
-  final double price = priceRaw is num
-      ? priceRaw.toDouble()
-      : double.tryParse(priceRaw.toString()) ?? 0.0;
-
-  final double rating = ratingRaw is num
-      ? ratingRaw.toDouble()
-      : double.tryParse(ratingRaw.toString()) ?? 0.0;
-
-  return Space(
-    id: j['id'].toString(),
-    title: j['title'] ?? '',
-    subtitle: j['subtitle'] ?? '',
-    imageUrl: j['imageUrl'] ?? '',
-    price: price,
-    rating: rating,
-  );
-}).toList();
-
+  @override
+  Future<Space> getById(String id) async {
+    final j = await api.getSpaceById(id);
+    return Space.fromJson(j);
   }
 }
