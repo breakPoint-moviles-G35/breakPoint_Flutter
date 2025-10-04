@@ -42,7 +42,7 @@ class Space {
       rating: (json['rating_avg'] is num)
           ? (json['rating_avg'] as num).toDouble()
           : double.tryParse(json['rating_avg']?.toString() ?? "0") ?? 0.0,
-      imageUrl: json['image_url'] ?? '', 
+      imageUrl: json['imageUrl'] ?? '', 
     );
   }
 }
