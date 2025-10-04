@@ -17,7 +17,7 @@ class SpaceApi {
       if (end != null) 'end': end,
     };
 
-    final res = await dio.get('/spaces', queryParameters: qp);
+    final res = await dio.get('/space', queryParameters: qp);
     return (res.data as List).cast<Map<String, dynamic>>();
   }
 }
