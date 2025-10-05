@@ -66,23 +66,47 @@ class ExploreScreen extends StatelessWidget {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                  onPressed: vm.toggleSort,
-                  child: const Text('Sort by price'),
-                ),
-                const SizedBox(width: 8),
-                if (vm.hasRange)
-                  InputChip(
-                    label: Text('${vm.fmtIsoDay(vm.start!)} – ${vm.fmtIsoDay(vm.end!)}'),
-                    onDeleted: () => vm.setStartEndFromRange(null),
-                  ),
-              ],
-            ),
+  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Row(
+        children: [
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+            onPressed: vm.toggleSort,
+            child: const Text('Ordenar por precio'),
           ),
+          const SizedBox(width: 8),
+          if (vm.hasRange)
+            InputChip(
+              label: Text(
+                '${vm.fmtIsoDay(vm.start!)} – ${vm.fmtIsoDay(vm.end!)}',
+              ),
+              onDeleted: () => vm.setStartEndFromRange(null),
+            ),
+        ],
+      ),
+      // 🔹 Nuevo botón "Ver mapa"
+      FilledButton.icon(
+        onPressed: () {
+          Navigator.pushNamed(context, AppRouter.map);
+        },
+        icon: const Icon(Icons.map_outlined, size: 18),
+        label: const Text('Ver mapa'),
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF5C1B6C),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
           const SizedBox(height: 8),
 
           Expanded(
