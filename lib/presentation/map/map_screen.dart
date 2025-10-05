@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
+// NUEVO: ubicación/permisos
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
+
 import '../explore/viewmodel/explore_viewmodel.dart';
 import '../details/space_detail_screen.dart';
-//import '../../routes/app_router.dart'; // por si quieres navegar por nombre
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -18,14 +21,38 @@ class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapCtrl;
   MapType _mapType = MapType.normal;
 
-  // Centro por defecto (ej. campus); cambia a tus coords reales
-  static const _campusCenter = LatLng(4.60971, -74.08175); // Bogotá centro
+  // Centro por defecto (campus)
+  static const _campusCenter = LatLng(4.60971, -74.08175);
   static const _defaultZoom = 15.0;
+
+  LatLng? _myLatLng;
+  bool _requestingLoc = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefetchMyLocation(); // opcional: intenta precargar al abrir
+  }
+
+  Future<void> _prefetchMyLocation() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      var p = await Geolocator.checkPermission();
+      if (p == LocationPermission.denied) {
+        p = await Geolocator.requestPermission();
+      }
+      if (p == LocationPermission.denied ||
+          p == LocationPermission.deniedForever) return;
+
+      final pos = await Geolocator.getCurrentPosition();
+      if (mounted) setState(() => _myLatLng = LatLng(pos.latitude, pos.longitude));
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ExploreViewModel>();
-    final markers = _buildMarkers(vm);
+    final markers = _buildMarkers(vm); // ← mantiene pines del backend
 
     return Scaffold(
       appBar: AppBar(
@@ -50,15 +77,14 @@ class _MapScreenState extends State<MapScreen> {
               zoom: _defaultZoom,
             ),
             mapType: _mapType,
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
+            myLocationEnabled: true,        // ← punto azul
+            myLocationButtonEnabled: false, // usamos nuestros FABs
             compassEnabled: true,
             zoomControlsEnabled: false,
             onMapCreated: (c) => _mapCtrl = c,
             markers: markers,
           ),
 
-          // Chip para rango (si lo tienes activo en ExploreViewModel)
           if (vm.hasRange)
             Positioned(
               top: 12,
@@ -73,23 +99,42 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // Botones de UI
+          // FABs: Mi ubicación + Campus + Lista
           Positioned(
             bottom: 16,
             right: 16,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _Fab(
-                  icon: Icons.center_focus_strong,
-                  tooltip: 'Centrar en campus',
-                  onPressed: () => _animateTo(_campusCenter, _defaultZoom),
+                // NUEVO: Ir a mi ubicación
+                FloatingActionButton.small(
+                  heroTag: 'fab-my-loc',
+                  tooltip: 'Ir a mi ubicación',
+                  onPressed: _requestingLoc ? null : _goToMyLocation,
+                  child: _requestingLoc
+                      ? const SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location),
                 ),
                 const SizedBox(height: 12),
-                _Fab(
-                  icon: Icons.list_alt,
+
+                // Botón existente: centrar en campus
+                FloatingActionButton.small(
+                  heroTag: 'fab-campus',
+                  tooltip: 'Centrar en campus',
+                  onPressed: () => _animateTo(_campusCenter, _defaultZoom),
+                  child: const Icon(Icons.center_focus_strong),
+                ),
+                const SizedBox(height: 12),
+
+                // Volver a la lista (Explore)
+                FloatingActionButton.small(
+                  heroTag: 'fab-list',
                   tooltip: 'Ver lista',
-                  onPressed: () => Navigator.pop(context), // vuelve a Explore
+                  onPressed: () => Navigator.pop(context),
+                  child: const Icon(Icons.list_alt),
                 ),
               ],
             ),
@@ -99,7 +144,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Crea marcadores a partir de los espacios del VM
+  // Mantiene marcadores del backend (vm.spaces)
   Set<Marker> _buildMarkers(ExploreViewModel vm) {
     final rnd = Random(42);
     final set = <Marker>{};
@@ -107,16 +152,15 @@ class _MapScreenState extends State<MapScreen> {
     for (final s in vm.spaces) {
       final loc = _parseLatLng(s.geo);
       if (loc == null) {
-        // Si no hay geo, crea un jitter alrededor del campus para demo
-        final dx = (rnd.nextDouble() - 0.5) / 500; // ~ leve desplazamiento
+        // Sin geo: jitter cerca del campus (demo)
+        final dx = (rnd.nextDouble() - 0.5) / 500;
         final dy = (rnd.nextDouble() - 0.5) / 500;
         final jitter = LatLng(_campusCenter.latitude + dx, _campusCenter.longitude + dy);
         set.add(_markerForSpace(s.id, s.title, s.subtitle ?? '', s.price, jitter, s));
-        continue;
+      } else {
+        set.add(_markerForSpace(s.id, s.title, s.subtitle ?? '', s.price, loc, s));
       }
-      set.add(_markerForSpace(s.id, s.title, s.subtitle ?? '', s.price, loc, s));
     }
-
     return set;
   }
 
@@ -135,7 +179,6 @@ class _MapScreenState extends State<MapScreen> {
         title: title,
         snippet: subtitle.isNotEmpty ? subtitle : '\$${price.toStringAsFixed(0)} COP',
         onTap: () {
-          // Abre el detalle
           if (!mounted) return;
           Navigator.push(
             context,
@@ -143,22 +186,13 @@ class _MapScreenState extends State<MapScreen> {
           );
         },
       ),
-      onTap: () {
-        // Si quieres mover la cámara al marcador
-        _animateTo(position, 17.0);
-      },
+      onTap: () => _animateTo(position, 17.0),
     );
   }
 
-  // Adapta a tu formato real de 'geo'
-  // Soporta:
-  // - String "lat,lng" (e.g., "4.6321,-74.0659")
-  // - Map {'lat': 4.6, 'lng': -74.08}
-  // - List [4.6, -74.08]
   LatLng? _parseLatLng(dynamic geo) {
     try {
       if (geo == null) return null;
-
       if (geo is String) {
         final parts = geo.split(',');
         if (parts.length == 2) {
@@ -175,36 +209,55 @@ class _MapScreenState extends State<MapScreen> {
       } else if (geo is List && geo.length >= 2) {
         return LatLng((geo[0] as num).toDouble(), (geo[1] as num).toDouble());
       }
-    } catch (_) {
-      // Silencioso; devolvemos null y jitter cerca del campus
-    }
+    } catch (_) {}
     return null;
   }
 
   Future<void> _animateTo(LatLng target, double zoom) async {
     final c = _mapCtrl;
     if (c == null) return;
-    await c.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(target: target, zoom: zoom),
-      ),
-    );
+    await c.animateCamera(CameraUpdate.newCameraPosition(
+      CameraPosition(target: target, zoom: zoom),
+    ));
   }
-}
 
-class _Fab extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-  const _Fab({required this.icon, required this.tooltip, required this.onPressed});
+  // === NUEVO: centrar a mi ubicación, con permisos ===
+  Future<void> _goToMyLocation() async {
+    if (_requestingLoc) return;
+    setState(() => _requestingLoc = true);
 
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton.small(
-      heroTag: tooltip,
-      onPressed: onPressed,
-      tooltip: tooltip,
-      child: Icon(icon),
-    );
+    try {
+      final servicesOn = await Geolocator.isLocationServiceEnabled();
+      if (!servicesOn) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Activa el GPS para usar tu ubicación.')),
+          );
+        }
+        return;
+      }
+
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.deniedForever) {
+        await ph.openAppSettings();
+        return;
+      }
+      if (perm == LocationPermission.denied) return;
+
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      _myLatLng = LatLng(pos.latitude, pos.longitude);
+      await _animateTo(_myLatLng!, 16);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo obtener tu ubicación: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _requestingLoc = false);
+    }
   }
 }
