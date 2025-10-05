@@ -76,7 +76,7 @@ class ReservationScreen extends StatelessWidget {
   }
 }
 
-// ===================== CONTENIDO PRINCIPAL =====================
+// CONTENIDO PRINCIPAL 
 class _ReservationContent extends StatelessWidget {
   const _ReservationContent();
 
@@ -129,7 +129,7 @@ class _ReservationContent extends StatelessWidget {
   }
 }
 
-// ===================== INFO DEL ESPACIO =====================
+//  INFO DEL ESPACIO 
 class _SpaceInfoCard extends StatelessWidget {
   final String address;
   final double rating;
@@ -186,7 +186,7 @@ class _SpaceInfoCard extends StatelessWidget {
   }
 }
 
-// ===================== SECCIÓN DE HORARIOS =====================
+//  SECCIÓN DE HORARIOS 
 class _TimeSelectionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -239,7 +239,7 @@ class _TimeSelectionSection extends StatelessWidget {
   }
 }
 
-// ===================== SECCIÓN DE DURACIÓN =====================
+// SECCIÓN DE DURACIÓN 
 class _DurationSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -267,7 +267,7 @@ class _DurationSection extends StatelessWidget {
   }
 }
 
-// ===================== SECCIÓN DE INVITADOS =====================
+// SECCIÓN DE INVITADOS 
 class _GuestsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -295,7 +295,7 @@ class _GuestsSection extends StatelessWidget {
   }
 }
 
-// ===================== BOTONES DE CONTADOR =====================
+// BOTONES DE CONTADOR 
 class _CounterButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
@@ -323,7 +323,7 @@ class _CounterButton extends StatelessWidget {
   }
 }
 
-// ===================== RESUMEN DE PRECIOS =====================
+//  RESUMEN DE PRECIOS 
 class _PriceSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -372,7 +372,7 @@ class _PriceSummaryCard extends StatelessWidget {
   }
 }
 
-// ===================== BOTÓN DE CONFIRMACIÓN =====================
+//  BOTÓN DE CONFIRMACIÓN 
 class _ReserveButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

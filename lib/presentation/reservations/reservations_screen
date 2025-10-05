@@ -46,16 +46,16 @@ class ReservationsScreen extends StatelessWidget {
           final r = reservations[i];
           return SpaceCard(
             title: r['title'] as String,
-            subtitle: '',                          // sin subtítulo
+            subtitle: '',                          
             rating: (r['rating'] as num).toDouble(),
-            priceCOP: null,                         // <- sin precio
-            metaLines: [                            // <- mostramos líneas meta
+            priceCOP: null,                         
+            metaLines: [                            
               r['address'] as String,
               r['hour'] as String,
             ],
-            rightTag: 'xxx',                        // como en Explore
-            imageAspectRatio: 16 / 9,               // mismo formato de imagen
-            onTap: () {},                           // solo UI por ahora
+            rightTag: 'xxx',                        
+            imageAspectRatio: 16 / 9,               
+            onTap: () {},                           
           );
         },
       ),

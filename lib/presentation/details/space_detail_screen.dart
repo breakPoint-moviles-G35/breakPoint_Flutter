@@ -227,7 +227,7 @@ class SpaceDetailScreen extends StatelessWidget {
                     spaceAddress: '123 Business District, Suite 456, City Center',
                     spaceRating: space.rating,
                     reviewCount: 127,
-                    pricePerHour: space.price / 24, // Convertir precio por noche a precio por hora
+                    pricePerHour: space.price / 24, 
                     spaceId: space.id,
                   ),
                 ),

@@ -21,9 +21,8 @@ class _ReservationDialogState extends State<ReservationDialog> {
   DateTime? _endTime;
   bool _isLoading = false;
 
-  // ==============================
   // Selección de hora
-  // ==============================
+  
   Future<void> _pickStartTime(BuildContext context) async {
     final now = DateTime.now();
     final picked = await showTimePicker(
@@ -66,10 +65,9 @@ class _ReservationDialogState extends State<ReservationDialog> {
       setState(() => _endTime = selected);
     }
   }
-
-  // ==============================
+  
   // Enviar reserva al backend
-  // ==============================
+  
   Future<void> _confirmReservation(BuildContext context) async {
     if (_startTime == null || _endTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,8 +81,8 @@ class _ReservationDialogState extends State<ReservationDialog> {
     setState(() => _isLoading = true);
 
     try {
-      // Crear instancia temporal del repo
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000')); // 🔧 Ajusta si tu backend usa otro puerto
+      
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000')); 
       final api = ReservationApi(dio);
       final repo = ReservationRepositoryImpl(api);
 
@@ -113,9 +111,8 @@ class _ReservationDialogState extends State<ReservationDialog> {
     }
   }
 
-  // ==============================
+ 
   // Formato de hora sin intl
-  // ==============================
   String _formatTime(DateTime? dateTime) {
     if (dateTime == null) return '--:--';
     final timeOfDay = TimeOfDay.fromDateTime(dateTime);
