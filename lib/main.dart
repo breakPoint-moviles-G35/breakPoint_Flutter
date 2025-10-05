@@ -6,6 +6,7 @@ import 'package:breakpoint/presentation/explore/explore_screen';
 import 'package:breakpoint/presentation/login/login_screen';
 
 import 'package:breakpoint/presentation/login/viewmodel/auth_viewmodel.dart';
+import 'package:breakpoint/presentation/map/map_screen.dart';
 import 'package:breakpoint/presentation/reservations/reservations_screen';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -75,6 +76,7 @@ class MyApp extends StatelessWidget {
         AppRouter.explore: (context) => const ExploreScreen(),
         AppRouter.filters: (context) => const DateFilterScreen(),
         AppRouter.reservations: (context) => const ReservationsScreen(),
+        AppRouter.map: (_) => const MapScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
           space: Space(
             id: "demo-id",
