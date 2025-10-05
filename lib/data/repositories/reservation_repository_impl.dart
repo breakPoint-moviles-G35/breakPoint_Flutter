@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import '../../domain/entities/reservation.dart';
 import '../../domain/repositories/reservation_repository.dart';
 import '../services/reservation_api.dart';
@@ -11,18 +10,16 @@ class ReservationRepositoryImpl implements ReservationRepository {
   @override
   Future<Reservation> createReservation({
     required String spaceId,
-    required String startTime,
-    required int durationHours,
-    required int numberOfGuests,
-    String? notes,
+    required String slotStart,
+    required String slotEnd,
+    required int guestCount,
   }) async {
     try {
       final response = await _api.createReservation(
         spaceId: spaceId,
-        startTime: startTime,
-        durationHours: durationHours,
-        numberOfGuests: numberOfGuests,
-        notes: notes,
+        slotStart: slotStart,
+        slotEnd: slotEnd,
+        guestCount: guestCount,
       );
       return Reservation.fromJson(response);
     } catch (e) {
@@ -41,38 +38,11 @@ class ReservationRepositoryImpl implements ReservationRepository {
   }
 
   @override
-  Future<Reservation> getReservationById(String reservationId) async {
-    try {
-      final response = await _api.getReservationById(reservationId);
-      return Reservation.fromJson(response);
-    } catch (e) {
-      throw Exception('Error al obtener la reserva: $e');
-    }
-  }
-
-  @override
   Future<void> cancelReservation(String reservationId) async {
     try {
       await _api.cancelReservation(reservationId);
     } catch (e) {
       throw Exception('Error al cancelar la reserva: $e');
-    }
-  }
-
-  @override
-  Future<bool> checkAvailability({
-    required String spaceId,
-    required String startTime,
-    required int durationHours,
-  }) async {
-    try {
-      return await _api.checkAvailability(
-        spaceId: spaceId,
-        startTime: startTime,
-        durationHours: durationHours,
-      );
-    } catch (e) {
-      throw Exception('Error al verificar disponibilidad: $e');
     }
   }
 }

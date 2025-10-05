@@ -10,18 +10,15 @@ class ReservationViewModel extends ChangeNotifier {
   final double spaceRating = 4.8;
   final int reviewCount = 127;
 
-  // Estados de la reserva
   String? selectedTime;
   int durationHours = 1;
   int numberOfGuests = 1;
   String? notes;
 
-  // Estados de la UI
   bool isLoading = false;
   String? errorMessage;
   bool isCheckingAvailability = false;
 
-  // Horarios disponibles
   final List<String> availableTimes = [
     '9:00 AM',
     '10:00 AM',
@@ -36,45 +33,27 @@ class ReservationViewModel extends ChangeNotifier {
   ];
 
   ReservationViewModel(this._repository, this.pricePerHour, this.spaceId) {
-    // Seleccionar la primera hora disponible por defecto
     selectedTime = availableTimes.first;
   }
 
-  // Getters para el texto de la UI
-  String get durationText {
-    if (durationHours == 1) {
-      return '1 hour';
-    }
-    return '$durationHours hours';
-  }
-
-  String get guestsText {
-    if (numberOfGuests == 1) {
-      return '1 guest';
-    }
-    return '$numberOfGuests guests';
-  }
-
+  String get durationText => durationHours == 1 ? '1 hour' : '$durationHours hours';
+  String get guestsText => numberOfGuests == 1 ? '1 guest' : '$numberOfGuests guests';
   double get totalPrice => pricePerHour * durationHours;
 
-  // Validaciones
   bool get canDecreaseDuration => durationHours > 1;
-  bool get canIncreaseDuration => durationHours < 8; // Máximo 8 horas
+  bool get canIncreaseDuration => durationHours < 8;
   bool get canDecreaseGuests => numberOfGuests > 1;
-  bool get canIncreaseGuests => numberOfGuests < 20; // Máximo 20 invitados
+  bool get canIncreaseGuests => numberOfGuests < 20;
   bool get canReserve => selectedTime != null && !isLoading;
 
-  // Métodos para cambiar el estado
   void selectTime(String time) {
     selectedTime = time;
-    _checkAvailability();
     notifyListeners();
   }
 
   void increaseDuration() {
     if (canIncreaseDuration) {
       durationHours++;
-      _checkAvailability();
       notifyListeners();
     }
   }
@@ -82,7 +61,6 @@ class ReservationViewModel extends ChangeNotifier {
   void decreaseDuration() {
     if (canDecreaseDuration) {
       durationHours--;
-      _checkAvailability();
       notifyListeners();
     }
   }
@@ -106,42 +84,6 @@ class ReservationViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clearError() {
-    if (errorMessage != null) {
-      errorMessage = null;
-      notifyListeners();
-    }
-  }
-
-  // Verificar disponibilidad cuando cambian los parámetros
-  Future<void> _checkAvailability() async {
-    if (selectedTime == null) return;
-
-    try {
-      isCheckingAvailability = true;
-      notifyListeners();
-
-      final startTime = _parseTimeToISO(selectedTime!);
-      final isAvailable = await _repository.checkAvailability(
-        spaceId: spaceId,
-        startTime: startTime,
-        durationHours: durationHours,
-      );
-
-      if (!isAvailable) {
-        errorMessage = 'Este horario no está disponible';
-      } else {
-        errorMessage = null;
-      }
-    } catch (e) {
-      errorMessage = 'Error al verificar disponibilidad: $e';
-    } finally {
-      isCheckingAvailability = false;
-      notifyListeners();
-    }
-  }
-
-  // Convertir tiempo seleccionado a ISO string
   String _parseTimeToISO(String timeString) {
     final now = DateTime.now();
     final timeParts = timeString.split(' ');
@@ -151,18 +93,13 @@ class ReservationViewModel extends ChangeNotifier {
     int hour = int.parse(time[0]);
     final minute = int.parse(time[1]);
 
-    // Convertir a formato 24 horas
-    if (period == 'PM' && hour != 12) {
-      hour += 12;
-    } else if (period == 'AM' && hour == 12) {
-      hour = 0;
-    }
+    if (period == 'PM' && hour != 12) hour += 12;
+    if (period == 'AM' && hour == 12) hour = 0;
 
     final dateTime = DateTime(now.year, now.month, now.day, hour, minute);
     return dateTime.toIso8601String();
   }
 
-  // Método para procesar la reserva
   Future<Reservation?> processReservation() async {
     if (!canReserve) return null;
 
@@ -171,14 +108,14 @@ class ReservationViewModel extends ChangeNotifier {
       errorMessage = null;
       notifyListeners();
 
-      final startTime = _parseTimeToISO(selectedTime!);
-      
+      final start = _parseTimeToISO(selectedTime!);
+      final end = DateTime.parse(start).add(Duration(hours: durationHours));
+
       final reservation = await _repository.createReservation(
         spaceId: spaceId,
-        startTime: startTime,
-        durationHours: durationHours,
-        numberOfGuests: numberOfGuests,
-        notes: notes,
+        slotStart: start,
+        slotEnd: end.toIso8601String(),
+        guestCount: numberOfGuests,
       );
 
       return reservation;

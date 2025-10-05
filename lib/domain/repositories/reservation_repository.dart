@@ -1,23 +1,14 @@
-import '../../domain/entities/reservation.dart';
+import '../entities/reservation.dart';
 
 abstract class ReservationRepository {
   Future<Reservation> createReservation({
     required String spaceId,
-    required String startTime,
-    required int durationHours,
-    required int numberOfGuests,
-    String? notes,
+    required String slotStart,
+    required String slotEnd,
+    required int guestCount,
   });
 
   Future<List<Reservation>> getUserReservations();
-  
-  Future<Reservation> getReservationById(String reservationId);
-  
+
   Future<void> cancelReservation(String reservationId);
-  
-  Future<bool> checkAvailability({
-    required String spaceId,
-    required String startTime,
-    required int durationHours,
-  });
 }

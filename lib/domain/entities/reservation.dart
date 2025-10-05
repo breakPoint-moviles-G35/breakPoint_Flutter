@@ -7,86 +7,85 @@ enum ReservationStatus {
 
 class Reservation {
   final String id;
-  final String spaceId;
-  final String spaceTitle;
-  final String spaceAddress;
   final String userId;
   final String userName;
-  final DateTime startTime;
-  final int durationHours;
-  final int numberOfGuests;
-  final double totalPrice;
+  final String spaceId;
+  final String spaceTitle;
+  final String? spaceImageUrl;
+  final double totalAmount;
+  final String currency;
+  final DateTime slotStart;
+  final DateTime slotEnd;
   final ReservationStatus status;
-  final DateTime createdAt;
-  final String? notes;
 
   Reservation({
     required this.id,
-    required this.spaceId,
-    required this.spaceTitle,
-    required this.spaceAddress,
     required this.userId,
     required this.userName,
-    required this.startTime,
-    required this.durationHours,
-    required this.numberOfGuests,
-    required this.totalPrice,
+    required this.spaceId,
+    required this.spaceTitle,
+    this.spaceImageUrl,
+    required this.totalAmount,
+    required this.currency,
+    required this.slotStart,
+    required this.slotEnd,
     required this.status,
-    required this.createdAt,
-    this.notes,
   });
 
   factory Reservation.fromJson(Map<String, dynamic> json) {
     return Reservation(
-      id: json['id'] as String,
-      spaceId: json['spaceId'] as String,
-      spaceTitle: json['spaceTitle'] as String,
-      spaceAddress: json['spaceAddress'] as String,
-      userId: json['userId'] as String,
-      userName: json['userName'] as String,
-      startTime: DateTime.parse(json['startTime'] as String),
-      durationHours: json['durationHours'] as int,
-      numberOfGuests: json['numberOfGuests'] as int,
-      totalPrice: (json['totalPrice'] as num).toDouble(),
-      status: ReservationStatus.values.firstWhere(
-        (e) => e.name == json['status'],
-        orElse: () => ReservationStatus.pending,
-      ),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      notes: json['notes'] as String?,
+      id: json['id'] ?? '',
+      userId: json['user']?['id'] ?? '',
+      userName: json['user']?['name'] ?? '',
+      spaceId: json['space']?['id'] ?? '',
+      spaceTitle: json['space']?['title'] ?? '',
+      spaceImageUrl: json['space']?['imageUrl'],
+      totalAmount: (json['total_amount'] ?? 0).toDouble(),
+      currency: json['currency'] ?? 'USD',
+      slotStart: DateTime.parse(json['slot_start']),
+      slotEnd: DateTime.parse(json['slot_end']),
+      status: _parseStatus(json['status']),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'spaceId': spaceId,
-      'spaceTitle': spaceTitle,
-      'spaceAddress': spaceAddress,
       'userId': userId,
       'userName': userName,
-      'startTime': startTime.toIso8601String(),
-      'durationHours': durationHours,
-      'numberOfGuests': numberOfGuests,
-      'totalPrice': totalPrice,
+      'spaceId': spaceId,
+      'spaceTitle': spaceTitle,
+      'spaceImageUrl': spaceImageUrl,
+      'totalAmount': totalAmount,
+      'currency': currency,
+      'slotStart': slotStart.toIso8601String(),
+      'slotEnd': slotEnd.toIso8601String(),
       'status': status.name,
-      'createdAt': createdAt.toIso8601String(),
-      'notes': notes,
     };
   }
 
-  DateTime get endTime => startTime.add(Duration(hours: durationHours));
-
-  String get formattedStartTime {
-    final hour = startTime.hour;
-    final minute = startTime.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    return '$displayHour:$minute $period';
+  static ReservationStatus _parseStatus(String? value) {
+    switch (value?.toLowerCase()) {
+      case 'confirmed':
+        return ReservationStatus.confirmed;
+      case 'cancelled':
+        return ReservationStatus.cancelled;
+      case 'completed':
+        return ReservationStatus.completed;
+      default:
+        return ReservationStatus.pending;
+    }
   }
 
+  /// Métodos auxiliares para mostrar en UI
   String get formattedDate {
-    return '${startTime.day}/${startTime.month}/${startTime.year}';
+    return '${slotStart.day}/${slotStart.month}/${slotStart.year}';
+  }
+
+  String get formattedTimeRange {
+    final start = '${slotStart.hour}:${slotStart.minute.toString().padLeft(2, '0')}';
+    final end = '${slotEnd.hour}:${slotEnd.minute.toString().padLeft(2, '0')}';
+    return '$start - $end';
   }
 
   String get statusText {

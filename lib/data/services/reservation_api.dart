@@ -7,19 +7,20 @@ class ReservationApi {
   /// Crear una nueva reserva
   Future<Map<String, dynamic>> createReservation({
     required String spaceId,
-    required String startTime, // ISO string
-    required int durationHours,
-    required int numberOfGuests,
-    String? notes,
+    required String slotStart,
+    required String slotEnd,
+    required int guestCount,
   }) async {
     try {
-      final res = await dio.post('/reservations', data: {
-        'spaceId': spaceId,
-        'startTime': startTime,
-        'durationHours': durationHours,
-        'numberOfGuests': numberOfGuests,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-      });
+      final res = await dio.post(
+        '/booking',
+        data: {
+          'spaceId': spaceId,
+          'slotStart': slotStart,
+          'slotEnd': slotEnd,
+          'guestCount': guestCount,
+        },
+      );
       return Map<String, dynamic>.from(res.data as Map);
     } on DioException catch (e) {
       throw Exception(_extractMessage(e));
@@ -29,18 +30,8 @@ class ReservationApi {
   /// Obtener reservas del usuario actual
   Future<List<Map<String, dynamic>>> getUserReservations() async {
     try {
-      final res = await dio.get('/reservations/user');
+      final res = await dio.get('/booking');
       return (res.data as List).cast<Map<String, dynamic>>();
-    } on DioException catch (e) {
-      throw Exception(_extractMessage(e));
-    }
-  }
-
-  /// Obtener una reserva específica por ID
-  Future<Map<String, dynamic>> getReservationById(String reservationId) async {
-    try {
-      final res = await dio.get('/reservations/$reservationId');
-      return Map<String, dynamic>.from(res.data as Map);
     } on DioException catch (e) {
       throw Exception(_extractMessage(e));
     }
@@ -49,25 +40,7 @@ class ReservationApi {
   /// Cancelar una reserva
   Future<void> cancelReservation(String reservationId) async {
     try {
-      await dio.delete('/reservations/$reservationId');
-    } on DioException catch (e) {
-      throw Exception(_extractMessage(e));
-    }
-  }
-
-  /// Verificar disponibilidad de un espacio en un horario específico
-  Future<bool> checkAvailability({
-    required String spaceId,
-    required String startTime,
-    required int durationHours,
-  }) async {
-    try {
-      final res = await dio.get('/reservations/availability', queryParameters: {
-        'spaceId': spaceId,
-        'startTime': startTime,
-        'durationHours': durationHours,
-      });
-      return res.data['available'] as bool;
+      await dio.delete('/booking/$reservationId');
     } on DioException catch (e) {
       throw Exception(_extractMessage(e));
     }
