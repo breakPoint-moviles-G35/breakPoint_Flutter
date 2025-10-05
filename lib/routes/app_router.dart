@@ -4,5 +4,9 @@ class AppRouter {
   static const String filters = '/filters';
   static const String reservations  = '/reservations'; 
   static const String spaceDetail = '/spaceDetail';
+
+  static const String reservation = '/reservation';
+
   static const String map = '/map';
+
 }

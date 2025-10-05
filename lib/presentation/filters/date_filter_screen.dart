@@ -103,4 +103,3 @@ class _DateFilterScreenState extends State<DateFilterScreen> {
     );
   }
 }
-// USO DE ESTE WIDGET EN explore_screen.dart

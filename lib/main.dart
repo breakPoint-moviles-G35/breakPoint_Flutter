@@ -2,6 +2,7 @@ import 'package:breakpoint/data/repositories/auth_repository_impl.dart';
 import 'package:breakpoint/data/services/auth_api.dart';
 import 'package:breakpoint/domain/entities/space.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
+import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/presentation/explore/explore_screen';
 import 'package:breakpoint/presentation/login/login_screen';
 
@@ -19,6 +20,8 @@ import 'core/network/dio_client.dart';
 // Data layer
 import 'data/services/space_api.dart';
 import 'data/repositories/space_repository_impl.dart';
+import 'data/services/reservation_api.dart';
+import 'data/repositories/reservation_repository_impl.dart';
 
 
 
@@ -27,6 +30,7 @@ import 'data/repositories/space_repository_impl.dart';
 import 'presentation/explore/viewmodel/explore_viewmodel.dart';
 import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
+import 'presentation/reservations/reservation_screen.dart';
 
 
 void main() {
@@ -46,6 +50,9 @@ void main() {
   final authRepo = AuthRepositoryImpl(authApi);
   authRepoRef = authRepo; // conecta el provider de token del interceptor
 
+  final reservationApi = ReservationApi(dioClient.dio);
+  final reservationRepo = ReservationRepositoryImpl(reservationApi);
+
   runApp(
     MultiProvider(
       providers: [
@@ -53,6 +60,7 @@ void main() {
           create: (_) => ExploreViewModel(repo)..load(), // ViewModel listo
         ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
+        Provider<ReservationRepository>(create: (_) => reservationRepo),
       ],
       child: const MyApp(),
     ),
@@ -89,6 +97,14 @@ class MyApp extends StatelessWidget {
             amenities: ["WiFi", "TV"],
             imageUrl: "", 
   ),
+        ),
+        AppRouter.reservation: (context) => ReservationScreen(
+          spaceTitle: 'Sample Space',
+          spaceAddress: '123 Business District, Suite 456, City Center',
+          spaceRating: 4.8,
+          reviewCount: 127,
+          pricePerHour: 25.0,
+          spaceId: 'demo-space-id',
         ),
       },
     );

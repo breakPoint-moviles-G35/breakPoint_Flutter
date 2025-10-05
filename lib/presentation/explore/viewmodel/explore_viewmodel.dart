@@ -10,8 +10,8 @@ class ExploreViewModel extends ChangeNotifier {
   final TextEditingController searchCtrl = TextEditingController();
   bool sortAsc = true;
 
-  String? start; // ISO-8601 (e.g. 2025-10-01T10:00:00.000Z)
-  String? end;   // ISO-8601
+  String? start; 
+  String? end;   
 
   bool isLoading = false;
   String? error;
