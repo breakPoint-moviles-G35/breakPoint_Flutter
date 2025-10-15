@@ -28,5 +28,19 @@ class SpaceApi {
     final res = await dio.get('/space/$id');
     return res.data as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> getNearestSpace({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final res = await dio.get(
+      '/space/nearest',
+      queryParameters: {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+    );
+    return res.data as Map<String, dynamic>;
+  }
 }
 
