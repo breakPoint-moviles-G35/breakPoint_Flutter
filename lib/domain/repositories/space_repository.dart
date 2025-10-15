@@ -9,4 +9,9 @@ abstract class SpaceRepository {
   });
 
   Future<Space> getById(String id);
+
+  Future<Space> getNearest({
+    required double latitude,
+    required double longitude,
+  });
 }
