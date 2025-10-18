@@ -7,13 +7,29 @@ import '../reservations/reservation_screen.dart';
 import '../host/host_detail_screen.dart';
 import '../host/viewmodel/host_viewmodel.dart';
 
-class SpaceDetailScreen extends StatelessWidget {
+class SpaceDetailScreen extends StatefulWidget {
   final Space space;
 
   const SpaceDetailScreen({
     super.key,
     required this.space,
   });
+
+  @override
+  State<SpaceDetailScreen> createState() => _SpaceDetailScreenState();
+}
+
+class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Limpiar el host anterior y cargar el host del nuevo espacio
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final hostViewModel = Provider.of<HostViewModel>(context, listen: false);
+      hostViewModel.clearHost();
+      hostViewModel.loadHostBySpaceId(widget.space.id);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +46,8 @@ class SpaceDetailScreen extends StatelessWidget {
                   Container(
                     height: 240,
                     color: Colors.grey[300],
-                    child: space.imageUrl.isNotEmpty
-                        ? Image.network(space.imageUrl, fit: BoxFit.cover)
+                    child: widget.space.imageUrl.isNotEmpty
+                        ? Image.network(widget.space.imageUrl, fit: BoxFit.cover)
                         : const Center(child: Icon(Icons.image, size: 120)),
                   ),
                   Positioned(
@@ -54,13 +70,13 @@ class SpaceDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(space.title,
+                    Text(widget.space.title,
                         style: Theme.of(context)
                             .textTheme
                             .headlineSmall
                             ?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    Text(space.subtitle ?? "Sin descripción",
+                    Text(widget.space.subtitle ?? "Sin descripción",
                         style: Theme.of(context).textTheme.bodyLarge),
                     const SizedBox(height: 10),
                     Row(
@@ -69,11 +85,11 @@ class SpaceDetailScreen extends StatelessWidget {
                             size: 24, color: Colors.amber),
                         const SizedBox(width: 6),
                         Text(
-                          space.rating.toString(),
+                          widget.space.rating.toString(),
                           style: const TextStyle(fontSize: 18),
                         ),
                         const SizedBox(width: 10),
-                        Text("${space.capacity} capacity",
+                        Text("${widget.space.capacity} capacity",
                             style: TextStyle(
                                 fontSize: 16, color: Colors.grey[600])),
                       ],
@@ -89,8 +105,8 @@ class SpaceDetailScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
-                  children: space.amenities.isNotEmpty
-                      ? space.amenities
+                  children: widget.space.amenities.isNotEmpty
+                      ? widget.space.amenities
                           .map((a) =>
                               _AmenityRow(icon: Icons.check, label: a))
                           .toList()
@@ -119,7 +135,7 @@ class SpaceDetailScreen extends StatelessWidget {
                     // Si no hay host cargado, cargar el host del espacio
                     if (hostViewModel.currentHost == null) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        hostViewModel.loadHostBySpaceId(space.id);
+                        hostViewModel.loadHostBySpaceId(widget.space.id);
                       });
                       return _buildHostCardPlaceholder();
                     }
@@ -154,7 +170,7 @@ class SpaceDetailScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  space.rules,
+                  widget.space.rules,
                   style: const TextStyle(fontSize: 16, height: 1.4),
                 ),
               ),
@@ -162,7 +178,7 @@ class SpaceDetailScreen extends StatelessWidget {
               const Divider(),
 
               // Reviews (placeholder)
-              _sectionTitle(context, "★ ${space.rating} · Reviews"),
+              _sectionTitle(context, "★ ${widget.space.rating} · Reviews"),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
@@ -190,7 +206,7 @@ class SpaceDetailScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("COP \$${space.price.toStringAsFixed(0)}/night",
+          Text("COP \$${widget.space.price.toStringAsFixed(0)}/night",
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.bold)),
           ElevatedButton(
@@ -206,12 +222,12 @@ class SpaceDetailScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ReservationScreen(
-                    spaceTitle: space.title,
+                    spaceTitle: widget.space.title,
                     spaceAddress: '123 Business District, Suite 456, City Center',
-                    spaceRating: space.rating,
+                    spaceRating: widget.space.rating,
                     reviewCount: 127,
-                    pricePerHour: space.price / 24, 
-                    spaceId: space.id,
+                    pricePerHour: widget.space.price / 24, 
+                    spaceId: widget.space.id,
                   ),
                 ),
               );
@@ -226,7 +242,7 @@ class SpaceDetailScreen extends StatelessWidget {
 
   void _navigateToHostDetail(BuildContext context) {
     final hostViewModel = Provider.of<HostViewModel>(context, listen: false);
-    hostViewModel.loadHostBySpaceId(space.id);
+    hostViewModel.loadHostBySpaceId(widget.space.id);
     
     Navigator.of(context).push(
       MaterialPageRoute(
