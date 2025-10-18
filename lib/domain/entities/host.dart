@@ -104,11 +104,18 @@ class Host {
     return 0;
   }
 
-  String get location {
-    if (user != null && user!['location'] != null) {
-      return user!['location'].toString();
+  String get spacesNames {
+    if (spaces != null && spaces!.isNotEmpty) {
+      return spaces!.map((space) => space['title']?.toString() ?? 'Espacio sin nombre').join(', ');
     }
-    return 'Ubicación no disponible';
+    return 'No hay espacios disponibles';
+  }
+
+  String get paymentMethod {
+    if (payoutMethod.isNotEmpty) {
+      return 'Método de pago: $payoutMethod';
+    }
+    return 'Método de pago no disponible';
   }
 
   String get workInfo {

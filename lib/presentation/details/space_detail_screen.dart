@@ -246,14 +246,12 @@ class SpaceDetailScreen extends StatelessWidget {
   }
 
   void _navigateToHostDetail(BuildContext context) {
+    final hostViewModel = Provider.of<HostViewModel>(context, listen: false);
+    hostViewModel.loadHostBySpaceId(space.id);
+    
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ChangeNotifierProvider(
-          create: (_) => HostViewModel(
-            Provider.of<HostRepository>(context, listen: false),
-          )..loadHostBySpaceId(space.id),
-          child: const HostDetailScreen(),
-        ),
+        builder: (context) => const HostDetailScreen(),
       ),
     );
   }

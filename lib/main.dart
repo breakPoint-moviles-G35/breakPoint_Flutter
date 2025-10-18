@@ -31,6 +31,7 @@ import 'data/repositories/host_repository_impl.dart';
 // Presentation layer
 
 import 'presentation/explore/viewmodel/explore_viewmodel.dart';
+import 'presentation/host/viewmodel/host_viewmodel.dart';
 import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
@@ -66,6 +67,7 @@ void main() {
           create: (_) => ExploreViewModel(repo)..load(), // ViewModel listo
         ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
+        ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
       ],

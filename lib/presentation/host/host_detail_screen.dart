@@ -101,24 +101,21 @@ class HostDetailScreen extends StatelessWidget {
   Widget _buildHostContent(BuildContext context, Host host) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Host Profile Card
             _buildHostProfileCard(host),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Host Details Section
             _buildHostDetailsSection(host),
-            const SizedBox(height: 24),
-
-            // Reviews Section
-            _buildReviewsSection(host),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Confirmed Information Section
             _buildConfirmedInfoSection(host),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -177,12 +174,12 @@ class HostDetailScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 // Stats
-                Row(
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 8,
                   children: [
                     _buildStatItem('${host.totalReviews}', 'Reviews'),
-                    const SizedBox(width: 20),
                     _buildStatItem('${host.averageRating.toStringAsFixed(2)}', '★ Rating'),
-                    const SizedBox(width: 20),
                     _buildStatItem('${host.monthsHosting}', 'Months hosting'),
                   ],
                 ),
@@ -223,9 +220,9 @@ class HostDetailScreen extends StatelessWidget {
       children: [
         _buildDetailItem(Icons.lightbulb_outline, host.birthInfo),
         const SizedBox(height: 12),
-        _buildDetailItem(Icons.location_on_outlined, host.location),
+        _buildDetailItem(Icons.location_on_outlined, host.spacesNames),
         const SizedBox(height: 12),
-        _buildDetailItem(Icons.work_outline, host.workInfo),
+        _buildDetailItem(Icons.payment, host.paymentMethod),
       ],
     );
   }
@@ -246,30 +243,6 @@ class HostDetailScreen extends StatelessWidget {
               fontSize: 16,
               color: Colors.black,
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReviewsSection(Host host) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "${host.firstName}'s reviews",
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'No hay reseñas disponibles en este momento.',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
           ),
         ),
       ],
