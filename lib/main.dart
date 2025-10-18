@@ -3,6 +3,7 @@ import 'package:breakpoint/data/services/auth_api.dart';
 import 'package:breakpoint/domain/entities/space.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
+import 'package:breakpoint/domain/repositories/host_repository.dart';
 import 'package:breakpoint/presentation/explore/explore_screen';
 import 'package:breakpoint/presentation/login/login_screen';
 
@@ -22,6 +23,8 @@ import 'data/services/space_api.dart';
 import 'data/repositories/space_repository_impl.dart';
 import 'data/services/reservation_api.dart';
 import 'data/repositories/reservation_repository_impl.dart';
+import 'data/services/host_api.dart';
+import 'data/repositories/host_repository_impl.dart';
 
 
 
@@ -53,6 +56,9 @@ void main() {
   final reservationApi = ReservationApi(dioClient.dio);
   final reservationRepo = ReservationRepositoryImpl(reservationApi);
 
+  final hostApi = HostApi(dioClient.dio);
+  final hostRepo = HostRepositoryImpl(hostApi);
+
   runApp(
     MultiProvider(
       providers: [
@@ -61,6 +67,7 @@ void main() {
         ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
         Provider<ReservationRepository>(create: (_) => reservationRepo),
+        Provider<HostRepository>(create: (_) => hostRepo),
       ],
       child: const MyApp(),
     ),

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../domain/entities/space.dart';
+import '../../domain/repositories/host_repository.dart';
 import '../reservations/reservation_screen.dart';
+import '../host/host_detail_screen.dart';
+import '../host/viewmodel/host_viewmodel.dart';
 
 class SpaceDetailScreen extends StatelessWidget {
   final Space space;
@@ -158,7 +162,7 @@ class SpaceDetailScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  onPressed: () {},
+                  onPressed: () => _navigateToHostDetail(context),
                   child: const Text("Contact host",
                       style: TextStyle(fontSize: 16, color: Colors.white)),
                 ),
@@ -237,6 +241,19 @@ class SpaceDetailScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 18, color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _navigateToHostDetail(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ChangeNotifierProvider(
+          create: (_) => HostViewModel(
+            Provider.of<HostRepository>(context, listen: false),
+          )..loadHostBySpaceId(space.id),
+          child: const HostDetailScreen(),
+        ),
       ),
     );
   }
