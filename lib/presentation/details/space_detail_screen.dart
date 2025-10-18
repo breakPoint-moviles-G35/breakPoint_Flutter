@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/space.dart';
+import '../../domain/entities/host.dart';
 import '../../domain/repositories/host_repository.dart';
 import '../reservations/reservation_screen.dart';
 import '../host/host_detail_screen.dart';
@@ -103,51 +104,29 @@ class SpaceDetailScreen extends StatelessWidget {
               _sectionTitle(context, "Meet your host"),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Column(
-                        children: const [
-                          CircleAvatar(
-                            radius: 34,
-                            backgroundColor: Colors.grey,
-                            child: Icon(Icons.person,
-                                size: 34, color: Colors.white),
-                          ),
-                          SizedBox(height: 8),
-                          Text("Andrés",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
-                          Text("Superhost · 3 years hosting",
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 14)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          _HostStat(value: "120", label: "Reviews"),
-                          SizedBox(width: 20),
-                          _HostStat(value: "4.9", label: "Rating"),
-                          SizedBox(width: 20),
-                          _HostStat(value: "95%", label: "Response rate"),
-                        ],
-                      ),
-                    ],
-                  ),
+                child: Consumer<HostViewModel>(
+                  builder: (context, hostViewModel, child) {
+                    // Si está cargando, mostrar placeholder
+                    if (hostViewModel.isLoading) {
+                      return _buildHostCardPlaceholder();
+                    }
+                    
+                    // Si hay error, mostrar placeholder
+                    if (hostViewModel.error != null) {
+                      return _buildHostCardPlaceholder();
+                    }
+                    
+                    // Si no hay host cargado, cargar el host del espacio
+                    if (hostViewModel.currentHost == null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        hostViewModel.loadHostBySpaceId(space.id);
+                      });
+                      return _buildHostCardPlaceholder();
+                    }
+                    
+                    // Mostrar datos reales del host
+                    return _buildHostCard(hostViewModel.currentHost!);
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -264,6 +243,103 @@ class SpaceDetailScreen extends StatelessWidget {
               .textTheme
               .titleLarge
               ?.copyWith(fontWeight: FontWeight.bold, fontSize: 20)),
+    );
+  }
+
+  Widget _buildHostCardPlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Column(
+            children: const [
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: Colors.grey,
+                child: Icon(Icons.person,
+                    size: 34, color: Colors.white),
+              ),
+              SizedBox(height: 8),
+              Text("Cargando...",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("Obteniendo información del host",
+                  style:
+                      TextStyle(color: Colors.grey, fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              _HostStat(value: "-", label: "Reviews"),
+              SizedBox(width: 20),
+              _HostStat(value: "-", label: "Rating"),
+              SizedBox(width: 20),
+              _HostStat(value: "-", label: "Response rate"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHostCard(Host host) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Column(
+            children: [
+              const CircleAvatar(
+                radius: 34,
+                backgroundColor: Colors.grey,
+                child: Icon(Icons.person,
+                    size: 34, color: Colors.white),
+              ),
+              const SizedBox(height: 8),
+              Text(host.firstName,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("Host · ${host.monthsHosting} months hosting",
+                  style: const TextStyle(color: Colors.grey, fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _HostStat(value: "${host.totalReviews}", label: "Reviews"),
+              const SizedBox(width: 20),
+              _HostStat(value: "${host.averageRating.toStringAsFixed(1)}", label: "Rating"),
+              const SizedBox(width: 20),
+              _HostStat(value: "95%", label: "Response rate"),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
