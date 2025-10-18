@@ -1,14 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../domain/entities/space.dart';
+import '../../domain/entities/host.dart';
+import '../../domain/repositories/host_repository.dart';
 import '../reservations/reservation_screen.dart';
+import '../host/host_detail_screen.dart';
+import '../host/viewmodel/host_viewmodel.dart';
 
-class SpaceDetailScreen extends StatelessWidget {
+class SpaceDetailScreen extends StatefulWidget {
   final Space space;
 
   const SpaceDetailScreen({
     super.key,
     required this.space,
   });
+
+  @override
+  State<SpaceDetailScreen> createState() => _SpaceDetailScreenState();
+}
+
+class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Limpiar el host anterior y cargar el host del nuevo espacio
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final hostViewModel = Provider.of<HostViewModel>(context, listen: false);
+      hostViewModel.clearHost();
+      hostViewModel.loadHostBySpaceId(widget.space.id);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +46,8 @@ class SpaceDetailScreen extends StatelessWidget {
                   Container(
                     height: 240,
                     color: Colors.grey[300],
-                    child: space.imageUrl.isNotEmpty
-                        ? Image.network(space.imageUrl, fit: BoxFit.cover)
+                    child: widget.space.imageUrl.isNotEmpty
+                        ? Image.network(widget.space.imageUrl, fit: BoxFit.cover)
                         : const Center(child: Icon(Icons.image, size: 120)),
                   ),
                   Positioned(
@@ -49,13 +70,13 @@ class SpaceDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(space.title,
+                    Text(widget.space.title,
                         style: Theme.of(context)
                             .textTheme
                             .headlineSmall
                             ?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    Text(space.subtitle ?? "Sin descripción",
+                    Text(widget.space.subtitle ?? "Sin descripción",
                         style: Theme.of(context).textTheme.bodyLarge),
                     const SizedBox(height: 10),
                     Row(
@@ -64,11 +85,11 @@ class SpaceDetailScreen extends StatelessWidget {
                             size: 24, color: Colors.amber),
                         const SizedBox(width: 6),
                         Text(
-                          space.rating.toString(),
+                          widget.space.rating.toString(),
                           style: const TextStyle(fontSize: 18),
                         ),
                         const SizedBox(width: 10),
-                        Text("${space.capacity} capacity",
+                        Text("${widget.space.capacity} capacity",
                             style: TextStyle(
                                 fontSize: 16, color: Colors.grey[600])),
                       ],
@@ -84,8 +105,8 @@ class SpaceDetailScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
-                  children: space.amenities.isNotEmpty
-                      ? space.amenities
+                  children: widget.space.amenities.isNotEmpty
+                      ? widget.space.amenities
                           .map((a) =>
                               _AmenityRow(icon: Icons.check, label: a))
                           .toList()
@@ -99,51 +120,29 @@ class SpaceDetailScreen extends StatelessWidget {
               _sectionTitle(context, "Meet your host"),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Column(
-                        children: const [
-                          CircleAvatar(
-                            radius: 34,
-                            backgroundColor: Colors.grey,
-                            child: Icon(Icons.person,
-                                size: 34, color: Colors.white),
-                          ),
-                          SizedBox(height: 8),
-                          Text("Andrés",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
-                          Text("Superhost · 3 years hosting",
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 14)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          _HostStat(value: "120", label: "Reviews"),
-                          SizedBox(width: 20),
-                          _HostStat(value: "4.9", label: "Rating"),
-                          SizedBox(width: 20),
-                          _HostStat(value: "95%", label: "Response rate"),
-                        ],
-                      ),
-                    ],
-                  ),
+                child: Consumer<HostViewModel>(
+                  builder: (context, hostViewModel, child) {
+                    // Si está cargando, mostrar placeholder
+                    if (hostViewModel.isLoading) {
+                      return _buildHostCardPlaceholder();
+                    }
+                    
+                    // Si hay error, mostrar placeholder
+                    if (hostViewModel.error != null) {
+                      return _buildHostCardPlaceholder();
+                    }
+                    
+                    // Si no hay host cargado, cargar el host del espacio
+                    if (hostViewModel.currentHost == null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        hostViewModel.loadHostBySpaceId(widget.space.id);
+                      });
+                      return _buildHostCardPlaceholder();
+                    }
+                    
+                    // Mostrar datos reales del host
+                    return _buildHostCard(hostViewModel.currentHost!);
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -158,7 +157,7 @@ class SpaceDetailScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  onPressed: () {},
+                  onPressed: () => _navigateToHostDetail(context),
                   child: const Text("Contact host",
                       style: TextStyle(fontSize: 16, color: Colors.white)),
                 ),
@@ -171,7 +170,7 @@ class SpaceDetailScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  space.rules,
+                  widget.space.rules,
                   style: const TextStyle(fontSize: 16, height: 1.4),
                 ),
               ),
@@ -179,7 +178,7 @@ class SpaceDetailScreen extends StatelessWidget {
               const Divider(),
 
               // Reviews (placeholder)
-              _sectionTitle(context, "★ ${space.rating} · Reviews"),
+              _sectionTitle(context, "★ ${widget.space.rating} · Reviews"),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
@@ -207,7 +206,7 @@ class SpaceDetailScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("COP \$${space.price.toStringAsFixed(0)}/night",
+          Text("COP \$${widget.space.price.toStringAsFixed(0)}/night",
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.bold)),
           ElevatedButton(
@@ -223,12 +222,12 @@ class SpaceDetailScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ReservationScreen(
-                    spaceTitle: space.title,
+                    spaceTitle: widget.space.title,
                     spaceAddress: '123 Business District, Suite 456, City Center',
-                    spaceRating: space.rating,
+                    spaceRating: widget.space.rating,
                     reviewCount: 127,
-                    pricePerHour: space.price / 24, 
-                    spaceId: space.id,
+                    pricePerHour: widget.space.price / 24, 
+                    spaceId: widget.space.id,
                   ),
                 ),
               );
@@ -241,6 +240,17 @@ class SpaceDetailScreen extends StatelessWidget {
     );
   }
 
+  void _navigateToHostDetail(BuildContext context) {
+    final hostViewModel = Provider.of<HostViewModel>(context, listen: false);
+    hostViewModel.loadHostBySpaceId(widget.space.id);
+    
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const HostDetailScreen(),
+      ),
+    );
+  }
+
   Widget _sectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -249,6 +259,103 @@ class SpaceDetailScreen extends StatelessWidget {
               .textTheme
               .titleLarge
               ?.copyWith(fontWeight: FontWeight.bold, fontSize: 20)),
+    );
+  }
+
+  Widget _buildHostCardPlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Column(
+            children: const [
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: Colors.grey,
+                child: Icon(Icons.person,
+                    size: 34, color: Colors.white),
+              ),
+              SizedBox(height: 8),
+              Text("Cargando...",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("Obteniendo información del host",
+                  style:
+                      TextStyle(color: Colors.grey, fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              _HostStat(value: "-", label: "Reviews"),
+              SizedBox(width: 20),
+              _HostStat(value: "-", label: "Rating"),
+              SizedBox(width: 20),
+              _HostStat(value: "-", label: "Response rate"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHostCard(Host host) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Column(
+            children: [
+              const CircleAvatar(
+                radius: 34,
+                backgroundColor: Colors.grey,
+                child: Icon(Icons.person,
+                    size: 34, color: Colors.white),
+              ),
+              const SizedBox(height: 8),
+              Text(host.firstName,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("Host · ${host.monthsHosting} months hosting",
+                  style: const TextStyle(color: Colors.grey, fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _HostStat(value: "${host.totalReviews}", label: "Reviews"),
+              const SizedBox(width: 20),
+              _HostStat(value: "${host.averageRating.toStringAsFixed(1)}", label: "Rating"),
+              const SizedBox(width: 20),
+              _HostStat(value: "95%", label: "Response rate"),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

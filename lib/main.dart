@@ -3,6 +3,7 @@ import 'package:breakpoint/data/services/auth_api.dart';
 import 'package:breakpoint/domain/entities/space.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
+import 'package:breakpoint/domain/repositories/host_repository.dart';
 import 'package:breakpoint/presentation/explore/explore_screen';
 import 'package:breakpoint/presentation/login/login_screen';
 
@@ -22,12 +23,15 @@ import 'data/services/space_api.dart';
 import 'data/repositories/space_repository_impl.dart';
 import 'data/services/reservation_api.dart';
 import 'data/repositories/reservation_repository_impl.dart';
+import 'data/services/host_api.dart';
+import 'data/repositories/host_repository_impl.dart';
 
 
 
 // Presentation layer
 
 import 'presentation/explore/viewmodel/explore_viewmodel.dart';
+import 'presentation/host/viewmodel/host_viewmodel.dart';
 import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
@@ -53,6 +57,9 @@ void main() {
   final reservationApi = ReservationApi(dioClient.dio);
   final reservationRepo = ReservationRepositoryImpl(reservationApi);
 
+  final hostApi = HostApi(dioClient.dio);
+  final hostRepo = HostRepositoryImpl(hostApi);
+
   runApp(
     MultiProvider(
       providers: [
@@ -60,7 +67,9 @@ void main() {
           create: (_) => ExploreViewModel(repo)..load(), // ViewModel listo
         ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
+        ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
         Provider<ReservationRepository>(create: (_) => reservationRepo),
+        Provider<HostRepository>(create: (_) => hostRepo),
       ],
       child: const MyApp(),
     ),
