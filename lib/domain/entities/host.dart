@@ -41,7 +41,7 @@ class Host {
   String get userName {
     if (user != null) {
       final firstName = user!['name']?.toString().split(' ').first ?? '';
-      final lastName = user!['name']?.toString().split(' ').length > 1 
+      final lastName = user!['name']!.toString().split(' ').length > 1 
           ? user!['name']?.toString().split(' ').last ?? ''
           : '';
       return '$firstName $lastName'.trim();

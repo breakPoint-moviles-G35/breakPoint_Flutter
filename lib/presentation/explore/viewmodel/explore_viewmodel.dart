@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain/repositories/space_repository.dart';
 import '../../../domain/entities/space.dart';
 
@@ -16,6 +17,11 @@ class ExploreViewModel extends ChangeNotifier {
   bool isLoading = false;
   String? error;
   List<Space> spaces = [];
+  
+  // Estado para recomendaciones
+  bool isLoadingRecommendations = false;
+  String? recommendationsError;
+  List<Space> recommendations = [];
 
   // Helpers
   bool get hasRange => start != null && end != null;
@@ -34,6 +40,29 @@ class ExploreViewModel extends ChangeNotifier {
       error = 'Error: $e';
     } finally {
       isLoading = false; notifyListeners();
+    }
+  }
+
+  Future<void> loadRecommendations() async {
+    try {
+      isLoadingRecommendations = true; 
+      recommendationsError = null; 
+      notifyListeners();
+      
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      
+      if (userId == null || userId.isEmpty) {
+        recommendations = [];
+        return;
+      }
+      
+      recommendations = await repo.getRecommendations(userId);
+    } catch (e) {
+      recommendationsError = 'Error: $e';
+    } finally {
+      isLoadingRecommendations = false; 
+      notifyListeners();
     }
   }
 

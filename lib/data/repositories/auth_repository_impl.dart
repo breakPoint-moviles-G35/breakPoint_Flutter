@@ -28,6 +28,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', _token!);
+    await prefs.setString('user_id', (_user?['id'] as String? ?? ''));
     await prefs.setString('auth_user', (_user ?? {}).toString());
   }
 
@@ -49,5 +50,6 @@ class AuthRepositoryImpl implements AuthRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     await prefs.remove('auth_user');
+    await prefs.remove('user_id');
   }
 }
