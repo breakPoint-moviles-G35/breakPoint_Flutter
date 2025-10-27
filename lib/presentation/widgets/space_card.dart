@@ -25,10 +25,12 @@ class SpaceCard extends StatelessWidget {
     this.metaLines,
     this.rightTag = '',
     this.imageAspectRatio = 16 / 9,
-    this.imageUrl ,
+    this.imageUrl,
     this.assetImage,
     this.onTap,
   });
+
+  bool get hasValidRating => rating > 0 && rating.isFinite;
 
   @override
   Widget build(BuildContext context) {
@@ -58,25 +60,49 @@ class SpaceCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(Icons.star, size: 16),
-                      const SizedBox(width: 4),
-                      Text(rating.toStringAsFixed(1)),
+
+                      // 🔹 Solo mostrar rating si es válido (> 0)
+                      if (hasValidRating) ...[
+                        const Icon(Icons.star, size: 16, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ],
+
                       if (rightTag.isNotEmpty) ...[
                         const SizedBox(width: 12),
-                        Text(rightTag, style: const TextStyle(color: Colors.black54)),
+                        Text(
+                          rightTag,
+                          style: const TextStyle(color: Colors.black54),
+                        ),
                       ],
                     ],
                   ),
+
                   if (subtitle.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(subtitle, style: const TextStyle(color: Colors.black54, height: 1.2)),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        height: 1.2,
+                      ),
+                    ),
                   ],
+
                   const SizedBox(height: 6),
+
                   if (metaLines != null && metaLines!.isNotEmpty)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: metaLines!
-                          .map((t) => Text(t, style: const TextStyle(color: Colors.black54)))
+                          .map((t) => Text(
+                                t,
+                                style:
+                                    const TextStyle(color: Colors.black54),
+                              ))
                           .toList(),
                     )
                   else if (priceCOP != null)
@@ -101,11 +127,12 @@ class SpaceCard extends StatelessWidget {
     bool isHttpUrl(String? s) =>
         s != null && s.isNotEmpty && (s.startsWith('http://') || s.startsWith('https://'));
     bool isFileUri(String? s) => s != null && s.startsWith('file://');
-    bool isFilePath(String? s) => s != null && s.isNotEmpty && s.startsWith('/') && !isHttpUrl(s);
+    bool isFilePath(String? s) =>
+        s != null && s.isNotEmpty && s.startsWith('/') && !isHttpUrl(s);
 
     Widget img;
     if (isHttpUrl(u)) {
-      // URL en red
+      // Imagen por red
       img = Image.network(
         u!,
         fit: BoxFit.cover,
@@ -126,7 +153,9 @@ class SpaceCard extends StatelessWidget {
       );
     } else if (isFileUri(u) || isFilePath(u)) {
       // Archivo local
-      final path = isFileUri(u) ? u!.replaceFirst(RegExp(r'^file://'), '') : u!;
+      final path = isFileUri(u)
+          ? u!.replaceFirst(RegExp(r'^file://'), '')
+          : u!;
       img = Image.file(
         File(path),
         fit: BoxFit.cover,
@@ -159,7 +188,8 @@ class _ImagePlaceholder extends StatelessWidget {
     return Container(
       color: const Color(0xFFE6E4E8),
       alignment: Alignment.center,
-      child: const Icon(Icons.broken_image_outlined, size: 28, color: Colors.black38),
+      child: const Icon(Icons.broken_image_outlined,
+          size: 28, color: Colors.black38),
     );
   }
 }

@@ -8,7 +8,7 @@ class Space {
   final List<String>? accessibility;
   final String rules;
   final double price;
-  final double rating;
+  double rating;
   final String imageUrl;
 
   Space({
