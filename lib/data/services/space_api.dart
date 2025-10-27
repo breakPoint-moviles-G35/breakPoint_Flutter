@@ -42,5 +42,10 @@ class SpaceApi {
     );
     return res.data as Map<String, dynamic>;
   }
+
+  Future<List<Map<String, dynamic>>> getRecommendations(String userId) async {
+    final res = await dio.get('/space/recommendations/$userId');
+    return (res.data as List).cast<Map<String, dynamic>>();
+  }
 }
 
