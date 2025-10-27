@@ -116,6 +116,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
 
               const Divider(),
 
+              // Estadísticas (mock)
+              _buildStatsSection(context),
+
+              const Divider(),
+
               // Host (placeholder)
               _sectionTitle(context, "Meet your host"),
               Padding(
@@ -311,6 +316,71 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     );
   }
 
+  // -------------------- Stats (mock) --------------------
+  Widget _buildStatsSection(BuildContext context) {
+    // Datos estáticos por ahora
+    final chips = const [
+      ['07:00', 2],
+      ['08:00', 2],
+      ['14:00', 1],
+      ['15:00', 1],
+    ];
+
+    // Alturas relativas para 6 puntos del eje X: 6a, 9a, 12p, 3p, 6p, 9p
+    // Valores entre 0 y 1 (tope visual = 10 reservas)
+    final barHeights = <double>[0.0, 1.0, 1.0, 0.6, 0.0, 0.0];
+    final xLabels = const ['6a', '9a', '12p', '3p', '6p', '9p'];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(context, "Horas más reservadas (semana)"),
+
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final c in chips)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: InputChip(
+                      label: Text('${c[0]}  x${c[1]}'),
+                      backgroundColor: const Color(0xFFF2E7FE),
+                      labelStyle: const TextStyle(color: Color(0xFF5C1B6C)),
+                      onPressed: () {},
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          const Text(
+            'Tap hours for details',
+            style: TextStyle(color: Colors.black54),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Gráfico de barras simple sin dependencias
+          _BarsChart(
+            heights: barHeights,
+            labels: xLabels,
+            maxHeight: 140,
+          ),
+
+          const SizedBox(height: 6),
+          const Text(
+            'Tope visual en 10 reservas por hora',
+            style: TextStyle(fontSize: 12, color: Colors.black45),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHostCard(Host host) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -395,6 +465,53 @@ class _HostStat extends StatelessWidget {
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 13)),
       ],
+    );
+  }
+}
+
+class _BarsChart extends StatelessWidget {
+  final List<double> heights; // valores 0..1
+  final List<String> labels;
+  final double maxHeight;
+
+  const _BarsChart({
+    required this.heights,
+    required this.labels,
+    this.maxHeight = 140,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final barWidth = 14.0;
+    final barColor = const Color(0xFF8155BA);
+
+    return SizedBox(
+      height: maxHeight + 36,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          for (var i = 0; i < heights.length; i++)
+            Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: barWidth,
+                  height: (heights[i].clamp(0.0, 1.0)) * maxHeight,
+                  decoration: BoxDecoration(
+                    color: barColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  labels[i],
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
