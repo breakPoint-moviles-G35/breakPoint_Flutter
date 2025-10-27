@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:provider/provider.dart';
 import '../../domain/entities/space.dart';
 import '../../domain/entities/host.dart';
@@ -20,6 +21,11 @@ class SpaceDetailScreen extends StatefulWidget {
 }
 
 class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
+  // Datos aleatorios para stats (persisten mientras la pantalla vive)
+  late final List<List<dynamic>> _chipsData; // ej. [['07:00', 2], ...]
+  late final List<double> _barHeights;      // 0..1
+  final List<String> _xLabels = const ['6a', '9a', '12p', '3p', '6p', '9p'];
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +35,24 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       hostViewModel.clearHost();
       hostViewModel.loadHostBySpaceId(widget.space.id);
     });
+
+    // Generar datos aleatorios para la sección de estadísticas
+    _generateRandomStats();
+  }
+
+  void _generateRandomStats() {
+    final r = Random();
+
+    // Chips: elegir 4 horas distintas y asignar 1..3 reservas
+    final hoursPool = ['07:00', '08:00', '09:00', '10:00', '14:00', '15:00', '16:00'];
+    hoursPool.shuffle(r);
+    _chipsData = hoursPool.take(4).map((h) => [h, r.nextInt(3) + 1]).toList();
+
+    // Barras: valores 0.1..1.0 para cada etiqueta
+    _barHeights = List.generate(
+      _xLabels.length,
+      (_) => (r.nextInt(10) + 1) / 10,
+    );
   }
 
   @override
@@ -318,18 +342,10 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
 
   // -------------------- Stats (mock) --------------------
   Widget _buildStatsSection(BuildContext context) {
-    // Datos estáticos por ahora
-    final chips = const [
-      ['07:00', 2],
-      ['08:00', 2],
-      ['14:00', 1],
-      ['15:00', 1],
-    ];
-
-    // Alturas relativas para 6 puntos del eje X: 6a, 9a, 12p, 3p, 6p, 9p
-    // Valores entre 0 y 1 (tope visual = 10 reservas)
-    final barHeights = <double>[0.0, 1.0, 1.0, 0.6, 0.0, 0.0];
-    final xLabels = const ['6a', '9a', '12p', '3p', '6p', '9p'];
+    // Usar datos aleatorios generados en initState
+    final chips = _chipsData;
+    final barHeights = _barHeights;
+    final xLabels = _xLabels;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
