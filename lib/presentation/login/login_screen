@@ -313,6 +313,46 @@ class _RegisterForm extends StatefulWidget {
 class _RegisterFormState extends State<_RegisterForm> {
   String _roleValue = 'Student'; // "Student" | "Host"
 
+  /// Valida que el email tenga formato correcto, sin emojis y sin puntos inválidos
+  String? _validateEmail(String email) {
+    // Validar formato básico de email
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    
+    if (!emailRegex.hasMatch(email)) {
+      return 'Ingresa un email válido';
+    }
+    
+    // Verificar que no contenga emojis o caracteres no permitidos
+    // Los emojis y muchos caracteres especiales tienen código Unicode fuera del rango ASCII básico
+    for (final char in email.runes) {
+      if (char > 0x7F) { // Caracteres fuera del ASCII básico (incluye emojis)
+        return 'El email no puede contener emojis o caracteres especiales';
+      }
+    }
+    
+    // Verificar que no tenga puntos consecutivos o al inicio/final de la parte local
+    final parts = email.split('@');
+    if (parts.length != 2) {
+      return 'Ingresa un email válido';
+    }
+    
+    final localPart = parts[0];
+    
+    // No puede empezar o terminar con punto
+    if (localPart.startsWith('.') || localPart.endsWith('.')) {
+      return 'El email no puede empezar o terminar con punto';
+    }
+    
+    // No puede tener puntos consecutivos
+    if (localPart.contains('..')) {
+      return 'El email no puede tener puntos consecutivos';
+    }
+    
+    return null; // Email válido
+  }
+
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -334,8 +374,10 @@ class _RegisterFormState extends State<_RegisterForm> {
             controller: widget.emailCtrl,
             keyboardType: TextInputType.emailAddress,
             decoration: widget.inputStyle('Ingresa tu email'),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Requerido';
+              return _validateEmail(v.trim());
+            },
           ),
           const SizedBox(height: 16),
 

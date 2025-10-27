@@ -38,4 +38,10 @@ class SpaceRepositoryImpl implements SpaceRepository {
     final j = await api.getNearestSpace(latitude: latitude, longitude: longitude);
     return Space.fromJson(j);
   }
+
+  @override
+  Future<List<Space>> getRecommendations(String userId) async {
+    final data = await api.getRecommendations(userId);
+    return data.map((j) => Space.fromJson(j)).toList();
+  }
 }

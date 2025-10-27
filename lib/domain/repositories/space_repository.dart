@@ -14,4 +14,6 @@ abstract class SpaceRepository {
     required double latitude,
     required double longitude,
   });
+
+  Future<List<Space>> getRecommendations(String userId);
 }

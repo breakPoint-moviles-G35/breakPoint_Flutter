@@ -44,7 +44,7 @@ void main() {
 
   // Configuración de red y repos
   final dioClient = DioClient(
-    'http://10.0.2.2:3000',
+    'http://192.168.0.6:3000',
     tokenProvider: () => authRepoRef?.token,
   );
   final api = SpaceApi(dioClient.dio);
@@ -64,7 +64,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => ExploreViewModel(repo)..load(), // ViewModel listo
+          create: (_) => ExploreViewModel(repo)..load()..loadRecommendations(), // ViewModel listo
         ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
         ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
