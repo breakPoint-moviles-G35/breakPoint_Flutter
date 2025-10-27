@@ -5,6 +5,7 @@ class AppRouter {
   static const String reservations  = '/reservations'; 
   static const String spaceDetail = '/spaceDetail';
   static const String profile = '/profile';
+  static const String rate = '/rate';
 
   static const String reservation = '/reservation';
 

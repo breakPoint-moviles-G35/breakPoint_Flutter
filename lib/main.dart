@@ -36,6 +36,7 @@ import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
+import 'presentation/rate/rate_screen.dart';
 
 
 void main() {
@@ -45,7 +46,7 @@ void main() {
 
   // Configuración de red y repos
   final dioClient = DioClient(
-    'http://192.168.0.6:3000',
+    'http://10.0.2.2:3000',
     tokenProvider: () => authRepoRef?.token,
   );
   final api = SpaceApi(dioClient.dio);
@@ -94,6 +95,7 @@ class MyApp extends StatelessWidget {
         AppRouter.explore: (context) => const ExploreScreen(),
         AppRouter.filters: (context) => const DateFilterScreen(),
         AppRouter.reservations: (context) => const ReservationsScreen(),
+        AppRouter.rate: (context) => const RateScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
