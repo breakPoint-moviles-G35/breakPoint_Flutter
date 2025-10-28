@@ -38,7 +38,8 @@ import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
 
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   
   AuthRepository? authRepoRef; // para exponer el token al interceptor
   
@@ -53,6 +54,7 @@ void main() {
 
   final authApi = AuthApi(dioClient.dio);
   final authRepo = AuthRepositoryImpl(authApi);
+  await authRepo.hydrate();
   authRepoRef = authRepo; // conecta el provider de token del interceptor
 
   final reservationApi = ReservationApi(dioClient.dio);
