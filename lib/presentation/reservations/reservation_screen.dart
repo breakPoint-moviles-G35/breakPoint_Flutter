@@ -54,15 +54,19 @@ class ReservationScreen extends StatelessWidget {
           onDestinationSelected: (i) {
             if (i == 0) {
               Navigator.pushReplacementNamed(context, AppRouter.explore);
-            }
-            if (i == 2) {
+            } else if (i == 1) {
+              Navigator.pushReplacementNamed(context, AppRouter.rate);
+            } else if (i == 2) {
               Navigator.pushReplacementNamed(context, AppRouter.reservations);
+            } else if (i == 3) {
+              Navigator.pushReplacementNamed(context, AppRouter.profile);
             }
           },
           destinations: const [
             NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
             NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
             NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
+            NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
           ],
         ),
       ),
@@ -84,9 +88,9 @@ class _ReservationContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SpaceInfoCard(
-            address: vm.spaceAddress,
-            rating: vm.spaceRating,
-            reviewCount: vm.reviewCount,
+            address: '',
+            rating: 0,
+            reviewCount: 0,
           ),
           const SizedBox(height: 24),
           _DateSelectionSection(),

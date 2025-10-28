@@ -6,9 +6,6 @@ class ReservationViewModel extends ChangeNotifier {
   final ReservationRepository _repository;
   final double pricePerHour;
   final String spaceId;
-  final String spaceAddress = '123 Business District, Suite 456, City Center';
-  final double spaceRating = 4.8;
-  final int reviewCount = 127;
 
   String? selectedTime;
   int durationHours = 1;
@@ -21,16 +18,8 @@ class ReservationViewModel extends ChangeNotifier {
   bool isCheckingAvailability = false;
 
   final List<String> availableTimes = [
-    '9:00 AM',
-    '10:00 AM',
-    '11:00 AM',
-    '12:00 PM',
-    '1:00 PM',
-    '2:00 PM',
-    '3:00 PM',
-    '4:00 PM',
-    '5:00 PM',
-    '6:00 PM',
+    '7:00 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM',
+    '1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM','7:00 PM','8:00 PM','9:00 PM',
   ];
 
   ReservationViewModel(this._repository, this.pricePerHour, this.spaceId) {
@@ -130,6 +119,7 @@ class ReservationViewModel extends ChangeNotifier {
         guestCount: numberOfGuests,
       );
 
+      // TODO: podríamos cachear/emitir evento para listado.
       return reservation;
     } catch (e) {
       errorMessage = 'Error al crear la reserva: $e';
