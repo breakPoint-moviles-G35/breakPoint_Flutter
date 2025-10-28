@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:breakpoint/routes/app_router.dart';
+import 'package:breakpoint/presentation/login/viewmodel/auth_viewmodel.dart';
 
 class HostHomeScreen extends StatelessWidget {
   const HostHomeScreen({super.key});
@@ -71,22 +73,44 @@ class HostHomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: (i) {
-          if (i == 2) {
-            Navigator.pushReplacementNamed(context, AppRouter.reservations);
-          } else if (i == 3) {
-            Navigator.pushReplacementNamed(context, AppRouter.profile);
+      // Barra de navegación específica para Host: solo 2 ítems
+      bottomNavigationBar: _HostBottomBar(),
+    );
+  }
+}
+
+class _HostBottomBar extends StatefulWidget {
+  @override
+  State<_HostBottomBar> createState() => _HostBottomBarState();
+}
+
+class _HostBottomBarState extends State<_HostBottomBar> {
+  int _index = 0; // 0: Espacios, 1: Perfil (cerrar sesión)
+
+  @override
+  Widget build(BuildContext context) {
+    return NavigationBar(
+      selectedIndex: _index,
+      onDestinationSelected: (i) async {
+        setState(() => _index = i);
+        if (i == 1) {
+          // Cerrar sesión y volver a login
+          final auth = context.read<AuthViewModel>();
+          await auth.repo.logout();
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRouter.login,
+              (_) => false,
+            );
           }
-        },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Host'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
-          NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
+        }
+        // i == 0: Espacios (home), no hace navegación adicional
+      },
+      destinations: const [
+        NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Espacios'),
+        NavigationDestination(icon: Icon(Icons.person_outline), label: 'Perfil'),
+      ],
     );
   }
 }
