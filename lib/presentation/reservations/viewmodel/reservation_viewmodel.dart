@@ -14,6 +14,7 @@ class ReservationViewModel extends ChangeNotifier {
   int durationHours = 1;
   int numberOfGuests = 1;
   String? notes;
+  DateTime selectedDate = DateTime.now();
 
   bool isLoading = false;
   String? errorMessage;
@@ -85,7 +86,6 @@ class ReservationViewModel extends ChangeNotifier {
   }
 
   String _parseTimeToISO(String timeString) {
-    final now = DateTime.now();
     final timeParts = timeString.split(' ');
     final time = timeParts[0].split(':');
     final period = timeParts[1];
@@ -95,9 +95,21 @@ class ReservationViewModel extends ChangeNotifier {
 
     if (period == 'PM' && hour != 12) hour += 12;
     if (period == 'AM' && hour == 12) hour = 0;
-
-    final dateTime = DateTime(now.year, now.month, now.day, hour, minute);
+    final dateTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, hour, minute);
     return dateTime.toIso8601String();
+  }
+
+  Future<void> pickDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 0)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      selectedDate = picked;
+      notifyListeners();
+    }
   }
 
   Future<Reservation?> processReservation() async {

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
-
 import '../../routes/app_router.dart';
-import '../../data/services/reservation_api.dart';
-import '../../data/repositories/reservation_repository_impl.dart';
 import '../../domain/repositories/reservation_repository.dart';
 import 'viewmodel/reservation_viewmodel.dart';
 
@@ -29,10 +25,8 @@ class ReservationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) {
-        final dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'));
-        final api = ReservationApi(dio);
-        final repo = ReservationRepositoryImpl(api);
+      create: (ctx) {
+        final repo = ctx.read<ReservationRepository>();
         return ReservationViewModel(repo, pricePerHour, spaceId);
       },
       child: Scaffold(
@@ -95,6 +89,8 @@ class _ReservationContent extends StatelessWidget {
             reviewCount: vm.reviewCount,
           ),
           const SizedBox(height: 24),
+          _DateSelectionSection(),
+          const SizedBox(height: 16),
           _TimeSelectionSection(),
           const SizedBox(height: 24),
           _DurationSection(),
@@ -232,6 +228,45 @@ class _TimeSelectionSection extends StatelessWidget {
                 ),
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// SELECCIÓN DE FECHA
+class _DateSelectionSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<ReservationViewModel>();
+
+    String fmt(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Date',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: () => vm.pickDate(context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(fmt(vm.selectedDate), style: const TextStyle(fontSize: 16)),
+                const Icon(Icons.calendar_today, size: 18),
+              ],
+            ),
           ),
         ),
       ],
