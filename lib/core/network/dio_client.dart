@@ -13,9 +13,7 @@ class DioClient {
             receiveTimeout: const Duration(seconds: 10),
           ),
         ) {
-    _dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
-
-    // Interceptor para Authorization
+    // Interceptor para Authorization (primero, para que LogInterceptor lo registre ya aplicado)
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         final token = tokenProvider?.call();
@@ -25,6 +23,9 @@ class DioClient {
         return handler.next(options);
       },
     ));
+
+    // Logger después, para ver el header Authorization en los logs
+    _dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
   }
 
   Dio get dio => _dio;
