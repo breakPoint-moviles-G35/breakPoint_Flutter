@@ -10,6 +10,7 @@ class ReservationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = context.read<ReservationRepository>();
+    final store = context.watch<ReservationsStore>();
 
     InputDecoration _searchDecoration() => InputDecoration(
       hintText: 'Reservas',
@@ -36,7 +37,7 @@ class ReservationsScreen extends StatelessWidget {
       ),
 
       body: FutureBuilder(
-        future: repo.getUserReservations(),
+        future: store.items.isEmpty ? repo.getUserReservations() : Future.value(store.items),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -45,15 +46,17 @@ class ReservationsScreen extends StatelessWidget {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           final reservations = snapshot.data ?? [];
-          if (reservations.isEmpty) {
+          // Merge simple: si ya hay locales en store y no hay snapshot, usamos store
+          final list = reservations.isNotEmpty ? reservations : store.items;
+          if (list.isEmpty) {
             return const Center(child: Text('Aún no tienes reservas.'));
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            itemCount: reservations.length,
+            itemCount: list.length,
             separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, i) {
-              final r = reservations[i];
+              final r = list[i];
               final title = r.spaceTitle;
               final hour = '${r.formattedDate} · ${r.formattedTimeRange}';
               return SpaceCard(

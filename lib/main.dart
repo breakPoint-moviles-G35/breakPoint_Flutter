@@ -37,6 +37,7 @@ import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
 import 'presentation/rate/rate_screen.dart';
+import 'presentation/reservations/viewmodel/reservations_store.dart';
 
 
 void main() {
@@ -70,6 +71,7 @@ void main() {
         ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
         ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
+        ChangeNotifierProvider(create: (_) => ReservationsStore()),
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
       ],

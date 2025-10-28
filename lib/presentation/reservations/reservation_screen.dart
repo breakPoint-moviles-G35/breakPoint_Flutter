@@ -381,7 +381,7 @@ class _ReserveButton extends StatelessWidget {
   }
 
   Future<void> _handleReservation(BuildContext context, ReservationViewModel vm) async {
-    final reservation = await vm.processReservation();
+    final reservation = await vm.processReservation(context);
 
     if (reservation != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -390,7 +390,8 @@ class _ReserveButton extends StatelessWidget {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context);
+      // Ir al listado para ver la reserva
+      Navigator.pushReplacementNamed(context, AppRouter.reservations);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
