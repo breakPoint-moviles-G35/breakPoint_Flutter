@@ -141,7 +141,9 @@ class _LoginScreenState extends State<LoginScreen> {
   );
 
   if (ok && context.mounted) {
-    Navigator.pushReplacementNamed(context, AppRouter.explore);
+    final role = vm.repo.currentUser?['role']?.toString();
+    final route = (role == 'Host') ? AppRouter.hostHome : AppRouter.explore;
+    Navigator.pushReplacementNamed(context, route);
   }
 }
 }
@@ -247,8 +249,9 @@ class _LoginForm extends StatelessWidget {
                       if (!formKey.currentState!.validate()) return;
                       final ok = await vm.login();
                       if (ok && context.mounted) {
-                        Navigator.pushReplacementNamed(
-                            context, AppRouter.explore);
+                        final role = vm.repo.currentUser?['role']?.toString();
+                        final route = (role == 'Host') ? AppRouter.hostHome : AppRouter.explore;
+                        Navigator.pushReplacementNamed(context, route);
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -360,7 +363,7 @@ class _RegisterFormState extends State<_RegisterForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Nombre (opcional)', style: TextStyle(fontSize: 13)),
+          const Text('Nombre', style: TextStyle(fontSize: 13)),
           const SizedBox(height: 6),
           TextFormField(
             controller: widget.nameCtrl,
