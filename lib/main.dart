@@ -36,6 +36,7 @@ import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
+import 'presentation/space/create_space_screen.dart';
 import 'presentation/host/host_home_screen.dart';
 
 
@@ -70,6 +71,7 @@ void main() {
         ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
         ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
+        Provider<SpaceRepository>(create: (_) => repo),
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
       ],
@@ -97,6 +99,7 @@ class MyApp extends StatelessWidget {
         AppRouter.reservations: (context) => const ReservationsScreen(),
         AppRouter.hostHome: (context) => const HostHomeScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
+        AppRouter.createSpace: (context) => const CreateSpaceScreen(),
         AppRouter.map: (_) => const MapScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
           space: Space(
