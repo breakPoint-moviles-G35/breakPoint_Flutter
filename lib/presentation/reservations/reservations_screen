@@ -54,19 +54,20 @@ class ReservationsScreen extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, i) {
               final r = reservations[i];
-              final address = r.space?.title ?? 'Space';
+              final title = r.spaceTitle;
               final hour = '${r.formattedDate} · ${r.formattedTimeRange}';
               return SpaceCard(
-                title: r.spaceTitle,
+                title: title,
                 subtitle: '',
                 rating: 0,
                 priceCOP: null,
                 metaLines: [
-                  'Dirección: $address',
-                  'Horas reservadas: $hour',
+                  'Reserva: $hour',
+                  'Total: ${r.totalAmount.toStringAsFixed(0)} ${r.currency}',
                 ],
-                rightTag: ' ',
+                rightTag: r.statusText,
                 imageAspectRatio: 16 / 9,
+                imageUrl: r.spaceImageUrl,
                 onTap: () {},
               );
             },
