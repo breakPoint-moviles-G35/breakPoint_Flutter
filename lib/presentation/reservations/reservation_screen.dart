@@ -87,12 +87,7 @@ class _ReservationContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SpaceInfoCard(
-            address: '',
-            rating: 0,
-            reviewCount: 0,
-          ),
-          const SizedBox(height: 24),
+          // Se removió la tarjeta de información del espacio
           _DateSelectionSection(),
           const SizedBox(height: 16),
           _TimeSelectionSection(),
@@ -123,63 +118,6 @@ class _ReservationContent extends StatelessWidget {
             ),
           _ReserveButton(),
           const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-//  INFO DEL ESPACIO 
-class _SpaceInfoCard extends StatelessWidget {
-  final String address;
-  final double rating;
-  final int reviewCount;
-
-  const _SpaceInfoCard({
-    required this.address,
-    required this.rating,
-    required this.reviewCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            address,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.star, color: Colors.amber, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                rating.toStringAsFixed(1),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '($reviewCount)',
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-            ],
-          ),
         ],
       ),
     );

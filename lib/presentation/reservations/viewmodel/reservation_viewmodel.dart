@@ -122,7 +122,12 @@ class ReservationViewModel extends ChangeNotifier {
       // TODO: podríamos cachear/emitir evento para listado.
       return reservation;
     } catch (e) {
-      errorMessage = 'Error al crear la reserva: $e';
+      final msg = e.toString();
+      if (msg.toLowerCase().contains('not available') || msg.toLowerCase().contains('overlap')) {
+        errorMessage = 'El horario seleccionado ya está reservado. Prueba otra hora.';
+      } else {
+        errorMessage = 'Error al crear la reserva: $e';
+      }
       return null;
     } finally {
       isLoading = false;

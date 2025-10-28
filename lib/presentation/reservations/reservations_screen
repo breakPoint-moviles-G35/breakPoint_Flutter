@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:breakpoint/routes/app_router.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart'; // <-- reutilizamos SpaceCard
+import 'package:provider/provider.dart';
+import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 
 class ReservationsScreen extends StatelessWidget {
   const ReservationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // mock de reservas para UI
-    final reservations = [
-      {'title': 'Casa #1', 'rating': 4.96, 'address': 'Dirección: Modelia', 'hour': 'Horas reservadas: 15:00-18:00', 'image': 'https://a0.muscache.com/im/pictures/19eadf18-6546-4f11-a9dc-cdd0ebd0c6b6.jpg?im_w=1200',},
-      {'title': 'Casa #2', 'rating': 4.80, 'address': 'Dirección: Tunal', 'hour': 'Horas reservadas: 9:00-12:00', 'image': 'https://a0.muscache.com/im/pictures/hosting/Hosting-1365485833225852450/original/25a0b177-ffec-48d5-b5b9-d67af0195088.jpeg?im_w=1200',},
-    ];
+    final repo = context.read<ReservationRepository>();
 
     InputDecoration _searchDecoration() => InputDecoration(
       hintText: 'Reservas',
@@ -37,25 +35,41 @@ class ReservationsScreen extends StatelessWidget {
         toolbarHeight: 64,
       ),
 
-      // Tarjetas GRANDES como Explore, pero mostrando Address/Hour en vez de precio
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        itemCount: reservations.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 16),
-        itemBuilder: (context, i) {
-          final r = reservations[i];
-          return SpaceCard(
-            title: r['title'] as String,
-            subtitle: '',                          
-            rating: (r['rating'] as num).toDouble(),
-            priceCOP: null,                         
-            metaLines: [                            
-              r['address'] as String,
-              r['hour'] as String,
-            ],
-            rightTag: 'xxx',                        
-            imageAspectRatio: 16 / 9,               
-            onTap: () {},                           
+      body: FutureBuilder(
+        future: repo.getUserReservations(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          final reservations = snapshot.data ?? [];
+          if (reservations.isEmpty) {
+            return const Center(child: Text('Aún no tienes reservas.'));
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            itemCount: reservations.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (context, i) {
+              final r = reservations[i];
+              final address = r.space?.title ?? 'Space';
+              final hour = '${r.formattedDate} · ${r.formattedTimeRange}';
+              return SpaceCard(
+                title: r.spaceTitle,
+                subtitle: '',
+                rating: 0,
+                priceCOP: null,
+                metaLines: [
+                  'Dirección: $address',
+                  'Horas reservadas: $hour',
+                ],
+                rightTag: ' ',
+                imageAspectRatio: 16 / 9,
+                onTap: () {},
+              );
+            },
           );
         },
       ),
