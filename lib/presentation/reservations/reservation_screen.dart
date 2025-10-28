@@ -381,7 +381,7 @@ class _ReserveButton extends StatelessWidget {
   }
 
   Future<void> _handleReservation(BuildContext context, ReservationViewModel vm) async {
-    final reservation = await vm.processReservation(context);
+    final reservation = await vm.processReservation();
 
     if (reservation != null) {
       ScaffoldMessenger.of(context).showSnackBar(
