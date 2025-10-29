@@ -45,4 +45,13 @@ class ReservationRepositoryImpl implements ReservationRepository {
       throw Exception('Error al cancelar la reserva: $e');
     }
   }
+
+  @override
+  Future<void> checkoutReservation(String reservationId) async {
+    try {
+      await _api.checkoutReservation(reservationId);
+    } catch (e) {
+      throw Exception('Error al hacer checkout: $e');
+    }
+  }
 }

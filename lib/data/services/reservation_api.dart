@@ -46,6 +46,15 @@ class ReservationApi {
     }
   }
 
+  /// Checkout de una reserva
+  Future<void> checkoutReservation(String reservationId) async {
+    try {
+      await dio.post('/booking/$reservationId/checkout');
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
   String _extractMessage(DioException e) {
     var msg = 'Error de red';
     final data = e.response?.data;
