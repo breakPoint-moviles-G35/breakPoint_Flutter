@@ -55,6 +55,16 @@ class ReservationApi {
     }
   }
 
+  /// Obtener reservas cerradas del usuario actual
+  Future<List<Map<String, dynamic>>> getClosedReservations() async {
+    try {
+      final res = await dio.get('/booking/closed');
+      return (res.data as List).cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
   String _extractMessage(DioException e) {
     var msg = 'Error de red';
     final data = e.response?.data;

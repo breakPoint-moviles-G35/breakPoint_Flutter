@@ -9,5 +9,6 @@ class AppRouter {
   static const String reservation = '/reservation';
   static const String rate = '/rate';
   static const String map = '/map';
+  static const String rate = '/rate';
 
 }

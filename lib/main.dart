@@ -36,6 +36,7 @@ import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
+import 'presentation/rate/rate_screen.dart';
 
 
 Future<void> main() async {
@@ -96,6 +97,7 @@ class MyApp extends StatelessWidget {
         AppRouter.explore: (context) => const ExploreScreen(),
         AppRouter.filters: (context) => const DateFilterScreen(),
         AppRouter.reservations: (context) => const ReservationsScreen(),
+        AppRouter.rate: (context) => const RateScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(

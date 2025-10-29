@@ -14,4 +14,7 @@ abstract class ReservationRepository {
 
   /// Realiza checkout de una reserva
   Future<void> checkoutReservation(String reservationId);
+
+  /// Listado de reservas cerradas del usuario actual
+  Future<List<Reservation>> getClosedReservations();
 }

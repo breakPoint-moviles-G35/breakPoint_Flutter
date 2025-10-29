@@ -54,4 +54,14 @@ class ReservationRepositoryImpl implements ReservationRepository {
       throw Exception('Error al hacer checkout: $e');
     }
   }
+
+  @override
+  Future<List<Reservation>> getClosedReservations() async {
+    try {
+      final response = await _api.getClosedReservations();
+      return response.map((json) => Reservation.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Error al obtener reservas cerradas: $e');
+    }
+  }
 }

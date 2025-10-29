@@ -232,7 +232,9 @@ class ExploreScreen extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         onDestinationSelected: (i) {
-          if (i == 2) {
+          if (i == 1) {
+            Navigator.pushReplacementNamed(context, AppRouter.rate);
+          } else if (i == 2) {
             Navigator.pushReplacementNamed(context, AppRouter.reservations);
           } else if (i == 3) {
             Navigator.pushReplacementNamed(context, AppRouter.profile);
