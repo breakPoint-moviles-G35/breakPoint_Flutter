@@ -45,4 +45,23 @@ class ReservationRepositoryImpl implements ReservationRepository {
       throw Exception('Error al cancelar la reserva: $e');
     }
   }
+
+  @override
+  Future<List<Reservation>> getActiveNow() async {
+    try {
+      final response = await _api.getActiveNow();
+      return response.map((json) => Reservation.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Error al obtener reservas activas: $e');
+    }
+  }
+
+  @override
+  Future<void> checkoutReservation(String reservationId) async {
+    try {
+      await _api.checkoutReservation(reservationId);
+    } catch (e) {
+      throw Exception('Error al hacer checkout: $e');
+    }
+  }
 }

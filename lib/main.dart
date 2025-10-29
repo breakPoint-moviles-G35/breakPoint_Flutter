@@ -36,6 +36,7 @@ import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
+import 'presentation/nfc/nfc_scan_screen.dart';
 
 
 Future<void> main() async {
@@ -98,6 +99,7 @@ class MyApp extends StatelessWidget {
         AppRouter.reservations: (context) => const ReservationsScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
+        AppRouter.nfc: (_) => const NfcScanScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
           space: Space(
             id: "demo-id",

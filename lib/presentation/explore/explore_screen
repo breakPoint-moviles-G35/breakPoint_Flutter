@@ -46,9 +46,9 @@ class ExploreScreen extends StatelessWidget {
                 ),
               ),
               IconButton(
-                onPressed: null,
-                icon: const Icon(Icons.qr_code_scanner, size: 20),
-                tooltip: 'Scan',
+                onPressed: () => Navigator.pushNamed(context, AppRouter.nfc),
+                icon: const Icon(Icons.nfc, size: 20),
+                tooltip: 'NFC',
               ),
             ],
           ),

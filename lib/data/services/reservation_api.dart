@@ -37,6 +37,25 @@ class ReservationApi {
     }
   }
 
+  /// Obtener reservas activas ahora
+  Future<List<Map<String, dynamic>>> getActiveNow() async {
+    try {
+      final res = await dio.get('/booking/active-now');
+      return (res.data as List).cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
+  /// Hacer checkout de una reserva
+  Future<void> checkoutReservation(String reservationId) async {
+    try {
+      await dio.post('/booking/$reservationId/checkout');
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
   /// Cancelar una reserva
   Future<void> cancelReservation(String reservationId) async {
     try {
