@@ -4,6 +4,7 @@ import 'package:breakpoint/domain/repositories/space_repository.dart';
 import 'package:breakpoint/domain/repositories/host_repository.dart';
 import 'package:breakpoint/routes/app_router.dart';
 import 'package:breakpoint/presentation/explore/viewmodel/explore_viewmodel.dart';
+import 'viewmodel/create_space_viewmodel.dart';
 
 class CreateSpaceScreen extends StatefulWidget {
   const CreateSpaceScreen({super.key});
@@ -59,7 +60,12 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ChangeNotifierProvider(
+      create: (_) => CreateSpaceViewModel(
+        context.read<SpaceRepository>(),
+        context.read<HostRepository>(),
+      ),
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -148,7 +154,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _field(String label, TextEditingController c, String hint,
@@ -197,7 +203,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
         _isSubmitting = true;
         _error = null;
       });
-      final repo = context.read<SpaceRepository>();
+      final vm = context.read<CreateSpaceViewModel>();
       final amenities = _amenitiesCtrl.text
           .split(',')
           .map((e) => e.trim())
@@ -206,8 +212,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
       final price = double.tryParse(_priceCtrl.text.trim()) ?? 0;
       final capacity = int.tryParse(_capacityCtrl.text.trim()) ?? 1;
 
-      await repo.createSpace(
-        hostProfileId: _hostProfileId!,
+      final ok = await vm.submit(
         title: _titleCtrl.text.trim(),
         subtitle: _subtitleCtrl.text.trim().isEmpty ? null : _subtitleCtrl.text.trim(),
         geo: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
@@ -218,6 +223,9 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
         rules: _rulesCtrl.text.trim(),
         price: price,
       );
+      if (!ok) {
+        throw Exception(vm.error ?? 'Error al crear el espacio');
+      }
 
       // Refrescar Explore para que aparezca el nuevo espacio
       if (mounted) {

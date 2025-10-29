@@ -47,7 +47,7 @@ class HostHomeScreen extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 onPressed: () {
-                  // Por ahora sin acción de navegación
+                  Navigator.pushNamed(context, AppRouter.createSpace);
                 },
                 child: const Text('Crear espacio'),
               ),
