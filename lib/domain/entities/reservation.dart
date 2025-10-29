@@ -33,17 +33,24 @@ class Reservation {
   });
 
   factory Reservation.fromJson(Map<String, dynamic> json) {
+    // 🔹 Adapta nombres snake_case / camelCase
+    final slotStartValue = json['slot_start'] ?? json['slotStart'];
+    final slotEndValue = json['slot_end'] ?? json['slotEnd'];
+    final totalAmountValue = json['total_amount'] ?? json['totalAmount'];
+
     return Reservation(
-      id: json['id'] ?? '',
-      userId: json['user']?['id'] ?? '',
+      id: json['id']?.toString() ?? '',
+      userId: json['user']?['id']?.toString() ?? '',
       userName: json['user']?['name'] ?? '',
-      spaceId: json['space']?['id'] ?? '',
+      spaceId: json['space']?['id']?.toString() ?? '',
       spaceTitle: json['space']?['title'] ?? '',
-      spaceImageUrl: json['space']?['imageUrl'],
-      totalAmount: (json['total_amount'] ?? 0).toDouble(),
+      spaceImageUrl: json['space']?['imageUrl'] ?? json['space']?['image_url'],
+      totalAmount: (totalAmountValue is num)
+          ? totalAmountValue.toDouble()
+          : double.tryParse(totalAmountValue?.toString() ?? '0') ?? 0.0,
       currency: json['currency'] ?? 'USD',
-      slotStart: DateTime.parse(json['slot_start']),
-      slotEnd: DateTime.parse(json['slot_end']),
+      slotStart: DateTime.tryParse(slotStartValue ?? '') ?? DateTime.now(),
+      slotEnd: DateTime.tryParse(slotEndValue ?? '') ?? DateTime.now(),
       status: _parseStatus(json['status']),
     );
   }
@@ -77,10 +84,8 @@ class Reservation {
     }
   }
 
-  /// Métodos auxiliares para mostrar en UI
-  String get formattedDate {
-    return '${slotStart.day}/${slotStart.month}/${slotStart.year}';
-  }
+  String get formattedDate =>
+      '${slotStart.day}/${slotStart.month}/${slotStart.year}';
 
   String get formattedTimeRange {
     final start = '${slotStart.hour}:${slotStart.minute.toString().padLeft(2, '0')}';

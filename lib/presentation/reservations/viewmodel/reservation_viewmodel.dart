@@ -6,30 +6,20 @@ class ReservationViewModel extends ChangeNotifier {
   final ReservationRepository _repository;
   final double pricePerHour;
   final String spaceId;
-  final String spaceAddress = '123 Business District, Suite 456, City Center';
-  final double spaceRating = 4.8;
-  final int reviewCount = 127;
 
   String? selectedTime;
   int durationHours = 1;
   int numberOfGuests = 1;
   String? notes;
+  DateTime selectedDate = DateTime.now();
 
   bool isLoading = false;
   String? errorMessage;
   bool isCheckingAvailability = false;
 
   final List<String> availableTimes = [
-    '9:00 AM',
-    '10:00 AM',
-    '11:00 AM',
-    '12:00 PM',
-    '1:00 PM',
-    '2:00 PM',
-    '3:00 PM',
-    '4:00 PM',
-    '5:00 PM',
-    '6:00 PM',
+    '7:00 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM',
+    '1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM','7:00 PM','8:00 PM','9:00 PM',
   ];
 
   ReservationViewModel(this._repository, this.pricePerHour, this.spaceId) {
@@ -85,7 +75,6 @@ class ReservationViewModel extends ChangeNotifier {
   }
 
   String _parseTimeToISO(String timeString) {
-    final now = DateTime.now();
     final timeParts = timeString.split(' ');
     final time = timeParts[0].split(':');
     final period = timeParts[1];
@@ -95,9 +84,21 @@ class ReservationViewModel extends ChangeNotifier {
 
     if (period == 'PM' && hour != 12) hour += 12;
     if (period == 'AM' && hour == 12) hour = 0;
-
-    final dateTime = DateTime(now.year, now.month, now.day, hour, minute);
+    final dateTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, hour, minute);
     return dateTime.toIso8601String();
+  }
+
+  Future<void> pickDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 0)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      selectedDate = picked;
+      notifyListeners();
+    }
   }
 
   Future<Reservation?> processReservation() async {
@@ -118,9 +119,15 @@ class ReservationViewModel extends ChangeNotifier {
         guestCount: numberOfGuests,
       );
 
+      // TODO: podríamos cachear/emitir evento para listado.
       return reservation;
     } catch (e) {
-      errorMessage = 'Error al crear la reserva: $e';
+      final msg = e.toString();
+      if (msg.toLowerCase().contains('not available') || msg.toLowerCase().contains('overlap')) {
+        errorMessage = 'El horario seleccionado ya está reservado. Prueba otra hora.';
+      } else {
+        errorMessage = 'Error al crear la reserva: $e';
+      }
       return null;
     } finally {
       isLoading = false;

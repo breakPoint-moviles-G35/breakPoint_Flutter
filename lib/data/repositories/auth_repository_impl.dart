@@ -16,6 +16,16 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Map<String, dynamic>? get currentUser => _user;
 
+  /// Carga el token y un user_id mínimo desde SharedPreferences al iniciar la app
+  Future<void> hydrate() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('auth_token');
+    final uid = prefs.getString('user_id');
+    if (uid != null && uid.isNotEmpty) {
+      _user = {'id': uid};
+    }
+  }
+
   @override
   Future<void> login(String email, String password) async {
     final res = await api.login(email: email, password: password);

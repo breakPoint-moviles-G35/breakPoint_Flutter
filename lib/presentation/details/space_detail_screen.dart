@@ -307,7 +307,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("COP \$${widget.space.price.toStringAsFixed(0)}/night",
+          Text("COP \$${widget.space.price.toStringAsFixed(0)}/hour",
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.bold)),
           ElevatedButton(
@@ -328,7 +328,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                         '123 Business District, Suite 456, City Center',
                     spaceRating: widget.space.rating,
                     reviewCount: 127,
-                    pricePerHour: widget.space.price / 24,
+                    pricePerHour: widget.space.price,
                     spaceId: widget.space.id,
                   ),
                 ),

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
-
 import '../../routes/app_router.dart';
-import '../../data/services/reservation_api.dart';
-import '../../data/repositories/reservation_repository_impl.dart';
 import '../../domain/repositories/reservation_repository.dart';
 import 'viewmodel/reservation_viewmodel.dart';
 
@@ -29,10 +25,8 @@ class ReservationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) {
-        final dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'));
-        final api = ReservationApi(dio);
-        final repo = ReservationRepositoryImpl(api);
+      create: (ctx) {
+        final repo = ctx.read<ReservationRepository>();
         return ReservationViewModel(repo, pricePerHour, spaceId);
       },
       child: Scaffold(
@@ -60,15 +54,19 @@ class ReservationScreen extends StatelessWidget {
           onDestinationSelected: (i) {
             if (i == 0) {
               Navigator.pushReplacementNamed(context, AppRouter.explore);
-            }
-            if (i == 2) {
+            } else if (i == 1) {
+              Navigator.pushReplacementNamed(context, AppRouter.rate);
+            } else if (i == 2) {
               Navigator.pushReplacementNamed(context, AppRouter.reservations);
+            } else if (i == 3) {
+              Navigator.pushReplacementNamed(context, AppRouter.profile);
             }
           },
           destinations: const [
             NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
             NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
             NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
+            NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
           ],
         ),
       ),
@@ -89,12 +87,9 @@ class _ReservationContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SpaceInfoCard(
-            address: vm.spaceAddress,
-            rating: vm.spaceRating,
-            reviewCount: vm.reviewCount,
-          ),
-          const SizedBox(height: 24),
+          // Se removió la tarjeta de información del espacio
+          _DateSelectionSection(),
+          const SizedBox(height: 16),
           _TimeSelectionSection(),
           const SizedBox(height: 24),
           _DurationSection(),
@@ -123,63 +118,6 @@ class _ReservationContent extends StatelessWidget {
             ),
           _ReserveButton(),
           const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-//  INFO DEL ESPACIO 
-class _SpaceInfoCard extends StatelessWidget {
-  final String address;
-  final double rating;
-  final int reviewCount;
-
-  const _SpaceInfoCard({
-    required this.address,
-    required this.rating,
-    required this.reviewCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            address,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.star, color: Colors.amber, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                rating.toStringAsFixed(1),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '($reviewCount)',
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -232,6 +170,45 @@ class _TimeSelectionSection extends StatelessWidget {
                 ),
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// SELECCIÓN DE FECHA
+class _DateSelectionSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<ReservationViewModel>();
+
+    String fmt(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Date',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: () => vm.pickDate(context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(fmt(vm.selectedDate), style: const TextStyle(fontSize: 16)),
+                const Icon(Icons.calendar_today, size: 18),
+              ],
+            ),
           ),
         ),
       ],
@@ -413,7 +390,8 @@ class _ReserveButton extends StatelessWidget {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context);
+      // Ir al listado para ver la reserva
+      Navigator.pushReplacementNamed(context, AppRouter.reservations);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

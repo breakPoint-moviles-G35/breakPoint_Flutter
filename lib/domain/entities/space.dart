@@ -22,27 +22,31 @@ class Space {
     required this.rules,
     required this.price,
     required this.rating,
-    required this.imageUrl, 
+    required this.imageUrl,
   });
 
-  
   factory Space.fromJson(Map<String, dynamic> json) {
     return Space(
-      id: json['id'] ?? '',
-      title: json['title'] ?? '',
+      id: json['id']?.toString() ?? '',
+      title: json['title'] ?? 'Sin título',
       subtitle: json['subtitle'],
       geo: json['geo'],
       capacity: json['capacity'] ?? 0,
-      amenities: (json['amenities'] as List?)?.map((a) => a.toString()).toList() ?? [],
-      accessibility: (json['accessibility'] as List?)?.map((a) => a.toString()).toList(),
+      amenities: (json['amenities'] as List?)
+              ?.map((a) => a.toString())
+              .toList() ??
+          [],
+      accessibility: (json['accessibility'] as List?)
+          ?.map((a) => a.toString())
+          .toList(),
       rules: json['rules'] ?? '',
       price: (json['price'] is num)
           ? (json['price'] as num).toDouble()
           : double.tryParse(json['price']?.toString() ?? "0") ?? 0.0,
-      rating: (json['rating_avg'] is num)
-          ? (json['rating_avg'] as num).toDouble()
-          : double.tryParse(json['rating_avg']?.toString() ?? "0") ?? 0.0,
-      imageUrl: json['imageUrl'] ?? '', 
+      rating: (json['rating_avg'] ?? json['rating']) is num
+          ? (json['rating_avg'] ?? json['rating']).toDouble()
+          : double.tryParse((json['rating_avg'] ?? json['rating'])?.toString() ?? "0") ?? 0.0,
+      imageUrl: json['imageUrl'] ?? json['image_url'] ?? '',
     );
   }
 }

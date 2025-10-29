@@ -1,82 +1,220 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:breakpoint/routes/app_router.dart';
-import 'package:breakpoint/presentation/widgets/space_card.dart'; // <-- reutilizamos SpaceCard
+import 'package:breakpoint/presentation/widgets/space_card.dart';
+import 'package:breakpoint/domain/entities/reservation.dart';
+import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 
-class ReservationsScreen extends StatelessWidget {
+class ReservationsScreen extends StatefulWidget {
   const ReservationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // mock de reservas para UI
-    final reservations = [
-      {'title': 'Casa #1', 'rating': 4.96, 'address': 'Dirección: Modelia', 'hour': 'Horas reservadas: 15:00-18:00', 'image': 'https://a0.muscache.com/im/pictures/19eadf18-6546-4f11-a9dc-cdd0ebd0c6b6.jpg?im_w=1200',},
-      {'title': 'Casa #2', 'rating': 4.80, 'address': 'Dirección: Tunal', 'hour': 'Horas reservadas: 9:00-12:00', 'image': 'https://a0.muscache.com/im/pictures/hosting/Hosting-1365485833225852450/original/25a0b177-ffec-48d5-b5b9-d67af0195088.jpeg?im_w=1200',},
-    ];
+  State<ReservationsScreen> createState() => _ReservationsScreenState();
+}
 
-    InputDecoration _searchDecoration() => InputDecoration(
-      hintText: 'Reservas',
-      prefixIcon: const Icon(Icons.search, size: 20),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(24),
-        borderSide: const BorderSide(color: Colors.black12),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(24),
-        borderSide: const BorderSide(color: Colors.black54, width: 1),
+class _ReservationsScreenState extends State<ReservationsScreen> {
+  bool isLoading = false;
+  String? error;
+  List<Reservation> reservations = [];
+  String? currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  /// 🔹 Cargar reservas activas del usuario
+  Future<void> _load() async {
+    try {
+      setState(() {
+        isLoading = true;
+        error = null;
+      });
+
+      // Leer user_id desde SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString('auth_user');
+        if (raw != null && raw.isNotEmpty) {
+          final regex = RegExp(r'id[:=]\s*([\w-]+)');
+          final m = regex.firstMatch(raw);
+          if (m != null) currentUserId = m.group(1);
+        }
+      } catch (_) {}
+
+      final repo = context.read<ReservationRepository>();
+      final all = await repo.getUserReservations();
+      final now = DateTime.now();
+
+      // 🔹 Mostrar reservas futuras o en curso (estado CONFIRMED)
+      reservations = all.where((r) {
+        final isUpcoming = r.slotStart.isAfter(now);
+        final isOngoing = r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
+        return r.status == ReservationStatus.confirmed && (isUpcoming || isOngoing);
+      }).toList()
+        ..sort((a, b) => a.slotStart.compareTo(b.slotStart));
+    } catch (e) {
+      error = 'Error al cargar reservas: $e';
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  /// 🔹 Eliminar una reserva
+  Future<void> _cancelReservation(BuildContext context, Reservation r) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar reserva'),
+        content: Text(
+            '¿Seguro que deseas cancelar la reserva de "${r.spaceTitle}"?\n\nEsta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
       ),
     );
 
+    if (confirm != true) return;
+
+    try {
+      final repo = context.read<ReservationRepository>();
+      await repo.cancelReservation(r.id);
+
+      if (mounted) {
+        setState(() {
+          reservations.removeWhere((x) => x.id == r.id);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reserva cancelada exitosamente.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cancelar la reserva: $e')),
+      );
+    }
+  }
+
+  InputDecoration _searchDecoration() => InputDecoration(
+        hintText: 'Reservas activas',
+        prefixIcon: const Icon(Icons.search, size: 20),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: const BorderSide(color: Colors.black12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: const BorderSide(color: Colors.black54, width: 1),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar tipo Explore con buscador
       appBar: AppBar(
         title: TextField(decoration: _searchDecoration()),
         centerTitle: true,
         toolbarHeight: 64,
       ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: Builder(builder: (context) {
+          if (isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (error != null) {
+            return Center(child: Text(error!));
+          }
+          if (reservations.isEmpty) {
+            return const Center(child: Text('No tienes reservas activas.'));
+          }
 
-      // Tarjetas GRANDES como Explore, pero mostrando Address/Hour en vez de precio
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        itemCount: reservations.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 16),
-        itemBuilder: (context, i) {
-          final r = reservations[i];
-          return SpaceCard(
-            title: r['title'] as String,
-            subtitle: '',                          
-            rating: (r['rating'] as num).toDouble(),
-            priceCOP: null,                         
-            metaLines: [                            
-              r['address'] as String,
-              r['hour'] as String,
-            ],
-            rightTag: 'xxx',                        
-            imageAspectRatio: 16 / 9,               
-            onTap: () {},                           
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            itemCount: reservations.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (context, i) {
+              final r = reservations[i];
+              return Column(
+                children: [
+                  SpaceCard(
+                    title: r.spaceTitle,
+                    subtitle: '',
+                    rating: 0,
+                    priceCOP: null,
+                    metaLines: [
+                      _formatSlot(r),
+                      'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
+                    ],
+                    rightTag: r.statusText,
+                    imageAspectRatio: 16 / 9,
+                    imageUrl: r.spaceImageUrl,
+                    onTap: () {},
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _cancelReservation(context, r),
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      label: const Text(
+                        'Cancelar reserva',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           );
-        },
+        }),
       ),
-
-      // Bottom bar con Reservations seleccionado
       bottomNavigationBar: NavigationBar(
         selectedIndex: 2,
         onDestinationSelected: (i) {
           if (i == 0) {
             Navigator.pushReplacementNamed(context, AppRouter.explore);
+          } else if (i == 1) {
+            Navigator.pushReplacementNamed(context, AppRouter.rate);
           } else if (i == 3) {
             Navigator.pushReplacementNamed(context, AppRouter.profile);
           }
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
-          NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
+          NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
+          NavigationDestination(
+              icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
+  }
+
+  /// 🔹 Formatear texto de fecha y hora de la reserva
+  String _formatSlot(Reservation r) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final s = r.slotStart;
+    final e = r.slotEnd;
+    final day = '${two(s.day)}/${two(s.month)}/${s.year}';
+    final t =
+        '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
+    return 'Horas reservadas: $t · $day';
   }
 }
