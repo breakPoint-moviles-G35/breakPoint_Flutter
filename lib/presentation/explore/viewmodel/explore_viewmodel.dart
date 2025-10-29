@@ -51,17 +51,19 @@ class ExploreViewModel extends ChangeNotifier {
       );
 
       // 2️⃣ Para cada espacio, traer el rating real desde Review API
-      for (final space in spaces) {
-        try {
-          final stats = await _reviewRepo.getSpaceStats(space.id.toString());
-          if (stats.containsKey("average_rating")) {
-            space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+      await Future.wait(
+        spaces.map((space) async {
+          try {
+            final stats = await _reviewRepo.getSpaceStats(space.id.toString());
+            if (stats.containsKey("average_rating")) {
+              space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+            }
+          } catch (e) {
+            // Ignorar errores individuales para no romper todo el ciclo
+            print("⚠️ Error al cargar rating del espacio ${space.id}: $e");
           }
-        } catch (e) {
-          // Ignorar errores individuales para no romper todo el ciclo
-          print("⚠️ Error al cargar rating del espacio ${space.id}: $e");
-        }
-      }
+        }),
+      );
 
       notifyListeners();
     } catch (e) {
@@ -91,17 +93,19 @@ class ExploreViewModel extends ChangeNotifier {
 
       recommendations = await repo.getRecommendations(userId);
 
-      // 🔹 También actualizar rating real de los recomendados
-      for (final space in recommendations) {
-        try {
-          final stats = await _reviewRepo.getSpaceStats(space.id.toString());
-          if (stats.containsKey("average_rating")) {
-            space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+      // 🔹 También actualizar rating real de los recomendados en paralelo
+      await Future.wait(
+        recommendations.map((space) async {
+          try {
+            final stats = await _reviewRepo.getSpaceStats(space.id.toString());
+            if (stats.containsKey("average_rating")) {
+              space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+            }
+          } catch (e) {
+            print("⚠️ Error al cargar rating de recomendación ${space.id}: $e");
           }
-        } catch (e) {
-          print("⚠️ Error al cargar rating de recomendación ${space.id}: $e");
-        }
-      }
+        }),
+      );
 
       notifyListeners();
     } catch (e) {
