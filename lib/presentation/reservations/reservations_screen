@@ -25,6 +25,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     _load();
   }
 
+  /// 🔹 Cargar reservas activas del usuario
   Future<void> _load() async {
     try {
       setState(() {
@@ -32,7 +33,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         error = null;
       });
 
-      // Leer user_id desde SharedPreferences (si está guardado)
+      // Leer user_id desde SharedPreferences
       try {
         final prefs = await SharedPreferences.getInstance();
         final raw = prefs.getString('auth_user');
@@ -46,15 +47,62 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       final repo = context.read<ReservationRepository>();
       final all = await repo.getUserReservations();
       final now = DateTime.now();
+
+      // 🔹 Mostrar reservas futuras o en curso (estado CONFIRMED)
       reservations = all.where((r) {
-        final activeWindow = r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
-        return r.status == ReservationStatus.confirmed && activeWindow;
+        final isUpcoming = r.slotStart.isAfter(now);
+        final isOngoing = r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
+        return r.status == ReservationStatus.confirmed && (isUpcoming || isOngoing);
       }).toList()
-        ..sort((a, b) => b.slotStart.compareTo(a.slotStart));
+        ..sort((a, b) => a.slotStart.compareTo(b.slotStart));
     } catch (e) {
       error = 'Error al cargar reservas: $e';
     } finally {
       if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  /// 🔹 Eliminar una reserva
+  Future<void> _cancelReservation(BuildContext context, Reservation r) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar reserva'),
+        content: Text(
+            '¿Seguro que deseas cancelar la reserva de "${r.spaceTitle}"?\n\nEsta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final repo = context.read<ReservationRepository>();
+      await repo.cancelReservation(r.id);
+
+      if (mounted) {
+        setState(() {
+          reservations.removeWhere((x) => x.id == r.id);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reserva cancelada exitosamente.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cancelar la reserva: $e')),
+      );
     }
   }
 
@@ -86,9 +134,15 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: Builder(builder: (context) {
-          if (isLoading) return const Center(child: CircularProgressIndicator());
-          if (error != null) return Center(child: Text(error!));
-          if (reservations.isEmpty) return const Center(child: Text('No tienes reservas activas.'));
+          if (isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (error != null) {
+            return Center(child: Text(error!));
+          }
+          if (reservations.isEmpty) {
+            return const Center(child: Text('No tienes reservas activas.'));
+          }
 
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -96,19 +150,35 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, i) {
               final r = reservations[i];
-              return SpaceCard(
-                title: r.spaceTitle,
-                subtitle: '',
-                rating: 0,
-                priceCOP: null,
-                metaLines: [
-                  _formatSlot(r),
-                  'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
+              return Column(
+                children: [
+                  SpaceCard(
+                    title: r.spaceTitle,
+                    subtitle: '',
+                    rating: 0,
+                    priceCOP: null,
+                    metaLines: [
+                      _formatSlot(r),
+                      'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
+                    ],
+                    rightTag: r.statusText,
+                    imageAspectRatio: 16 / 9,
+                    imageUrl: r.spaceImageUrl,
+                    onTap: () {},
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _cancelReservation(context, r),
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      label: const Text(
+                        'Cancelar reserva',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
                 ],
-                rightTag: r.statusText,
-                imageAspectRatio: 16 / 9,
-                imageUrl: r.spaceImageUrl,
-                onTap: () {},
               );
             },
           );
@@ -127,20 +197,24 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
-          NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
+          NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline), label: 'Rate'),
+          NavigationDestination(
+              icon: Icon(Icons.event_note_outlined), label: 'Reservations'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
   }
 
+  /// 🔹 Formatear texto de fecha y hora de la reserva
   String _formatSlot(Reservation r) {
     String two(int n) => n.toString().padLeft(2, '0');
     final s = r.slotStart;
     final e = r.slotEnd;
     final day = '${two(s.day)}/${two(s.month)}/${s.year}';
-    final t = '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
+    final t =
+        '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
     return 'Horas reservadas: $t · $day';
   }
 }
