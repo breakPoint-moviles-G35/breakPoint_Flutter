@@ -25,6 +25,9 @@ import 'data/services/reservation_api.dart';
 import 'data/repositories/reservation_repository_impl.dart';
 import 'data/services/host_api.dart';
 import 'data/repositories/host_repository_impl.dart';
+import 'data/services/review_api.dart';
+import 'data/repositories/review_repository_impl.dart';
+import 'domain/repositories/review_repository.dart';
 
 
 
@@ -64,6 +67,9 @@ Future<void> main() async {
   final hostApi = HostApi(dioClient.dio);
   final hostRepo = HostRepositoryImpl(hostApi);
 
+  final reviewApi = ReviewApi(dioClient.dio);
+  final reviewRepo = ReviewRepositoryImpl(reviewApi);
+
   runApp(
     MultiProvider(
       providers: [
@@ -74,6 +80,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
+        Provider<ReviewRepository>(create: (_) => reviewRepo),
       ],
       child: const MyApp(),
     ),

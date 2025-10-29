@@ -22,6 +22,22 @@ class ReviewApi {
     }
   }
 
+  Future<void> createReview({
+    required String spaceId,
+    required String text,
+    required String rating,
+  }) async {
+    try {
+      await dio.post('/review', data: {
+        'spaceId': spaceId,
+        'text': text,
+        'rating': rating, // en string
+      });
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
   String _extractMessage(DioException e) {
     var msg = 'Error de red';
     final data = e.response?.data;

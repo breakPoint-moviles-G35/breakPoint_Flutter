@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
+import 'package:breakpoint/domain/repositories/review_repository.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
 import 'package:breakpoint/routes/app_router.dart';
@@ -73,12 +74,7 @@ class _RateScreenState extends State<RateScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: OutlinedButton(
-                      onPressed: () {
-                        // Placeholder por ahora
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Abrir crear review (pendiente)')),
-                        );
-                      },
+                      onPressed: () => _openCreateReview(context, r),
                       child: const Text('Crear review'),
                     ),
                   ),
@@ -116,6 +112,143 @@ class _RateScreenState extends State<RateScreen> {
     final day = '${two(s.day)}/${two(s.month)}/${s.year}';
     final t = '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
     return 'Horas: $t · $day';
+  }
+
+  Future<void> _openCreateReview(BuildContext context, Reservation r) async {
+    final textCtrl = TextEditingController();
+    int rating = 0;
+    String? error;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final bottom = MediaQuery.of(ctx).viewInsets.bottom;
+        return StatefulBuilder(builder: (ctx, setMState) {
+          Future<void> submit() async {
+            // Validar 50 palabras máx
+            final words = textCtrl.text.trim().split(RegExp(r"\s+")).where((w) => w.isNotEmpty).toList();
+            if (words.length > 50) {
+              setMState(() => error = 'Máximo 50 palabras');
+              return;
+            }
+            if (rating == 0) {
+              setMState(() => error = 'Selecciona un rating');
+              return;
+            }
+            try {
+              final reviewRepo = context.read<ReviewRepository>();
+              await reviewRepo.createReview(
+                spaceId: r.spaceId,
+                text: textCtrl.text.trim(),
+                rating: rating.toString(),
+              );
+              if (mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Review creada correctamente')),
+                );
+              }
+            } catch (e) {
+              setMState(() => error = 'Error al crear review: $e');
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Rate your experience',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Campo texto
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Review'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: textCtrl,
+                        minLines: 3,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.all(12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Estrellas
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (i) {
+                    final idx = i + 1;
+                    return IconButton(
+                      onPressed: () => setMState(() => rating = idx),
+                      icon: Icon(
+                        idx <= rating ? Icons.star : Icons.star_border,
+                        color: Colors.black87,
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 8),
+                if (error != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(error!, style: const TextStyle(color: Colors.red)),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                // Botón
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: submit,
+                      child: const Text('Send'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
+      },
+    );
   }
 }
 
