@@ -167,16 +167,28 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                     onTap: () {},
                   ),
                   const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () => _cancelReservation(context, r),
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      label: const Text(
-                        'Cancelar reserva',
-                        style: TextStyle(color: Colors.red),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Botón de Checkout si está en curso
+                      if (_canCheckout(r))
+                        TextButton.icon(
+                          onPressed: () => _doCheckout(context, r),
+                          icon: const Icon(Icons.logout, color: Colors.green),
+                          label: const Text('Checkout',
+                              style: TextStyle(color: Colors.green)),
+                        ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () => _cancelReservation(context, r),
+                        icon:
+                            const Icon(Icons.delete_outline, color: Colors.red),
+                        label: const Text(
+                          'Cancelar reserva',
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               );
@@ -216,5 +228,49 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     final t =
         '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
     return 'Horas reservadas: $t · $day';
+  }
+
+  bool _canCheckout(Reservation r) {
+    final now = DateTime.now();
+    final inWindow = r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
+    return r.status == ReservationStatus.confirmed && inWindow;
+  }
+
+  Future<void> _doCheckout(BuildContext context, Reservation r) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Checkout'),
+        content: Text(
+            '¿Desea hacer el checkout de la habitación "${r.spaceTitle}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final repo = context.read<ReservationRepository>();
+      await repo.checkoutReservation(r.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checkout realizado correctamente.')),
+      );
+      // recargar listado
+      await _load();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al hacer checkout: $e')),
+      );
+    }
   }
 }
