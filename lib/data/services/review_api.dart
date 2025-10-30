@@ -29,7 +29,7 @@ class ReviewApi {
   }) async {
     try {
       await dio.post('/review', data: {
-        'spaceId': spaceId,
+        'space_id': spaceId,
         'text': text,
         'rating': rating, // en string
       });
