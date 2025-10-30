@@ -29,6 +29,19 @@ class ReviewRepositoryImpl implements ReviewRepository {
     }
   }
 
+  @override
+  Future<void> createReview({
+    required String spaceId,
+    required String text,
+    required String rating,
+  }) async {
+    try {
+      await _api.createReview(spaceId: spaceId, text: text, rating: rating);
+    } catch (e) {
+      throw Exception('Error al crear review: $e');
+    }
+  }
+
   /// 🔹 Nuevo método para obtener el promedio de rating de un espacio
   Future<double> fetchAverageRatingForSpace(int spaceId) async {
     try {

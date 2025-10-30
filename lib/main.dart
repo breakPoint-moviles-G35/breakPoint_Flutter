@@ -25,6 +25,9 @@ import 'data/services/reservation_api.dart';
 import 'data/repositories/reservation_repository_impl.dart';
 import 'data/services/host_api.dart';
 import 'data/repositories/host_repository_impl.dart';
+import 'data/services/review_api.dart';
+import 'data/repositories/review_repository_impl.dart';
+import 'domain/repositories/review_repository.dart';
 
 
 
@@ -36,6 +39,7 @@ import 'presentation/details/space_detail_screen.dart';
 import 'presentation/filters/date_filter_screen.dart';
 import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
+import 'presentation/rate/rate_screen.dart';
 
 
 Future<void> main() async {
@@ -63,6 +67,9 @@ Future<void> main() async {
   final hostApi = HostApi(dioClient.dio);
   final hostRepo = HostRepositoryImpl(hostApi);
 
+  final reviewApi = ReviewApi(dioClient.dio);
+  final reviewRepo = ReviewRepositoryImpl(reviewApi);
+
   runApp(
     MultiProvider(
       providers: [
@@ -73,6 +80,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
+        Provider<ReviewRepository>(create: (_) => reviewRepo),
       ],
       child: MyApp(authRepo: authRepo),
     ),
@@ -123,6 +131,7 @@ class MyApp extends StatelessWidget {
         AppRouter.explore: (context) => const ExploreScreen(),
         AppRouter.filters: (context) => const DateFilterScreen(),
         AppRouter.reservations: (context) => const ReservationsScreen(),
+        AppRouter.rate: (context) => const RateScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
