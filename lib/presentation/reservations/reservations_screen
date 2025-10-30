@@ -222,8 +222,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   /// 🔹 Formatear texto de fecha y hora de la reserva
   String _formatSlot(Reservation r) {
     String two(int n) => n.toString().padLeft(2, '0');
-    final s = r.slotStart;
-    final e = r.slotEnd;
+    final s = r.slotStart.toLocal();
+    final e = r.slotEnd.toLocal();
     final day = '${two(s.day)}/${two(s.month)}/${s.year}';
     final t =
         '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
