@@ -142,6 +142,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   if (ok && context.mounted) {
     Navigator.pushReplacementNamed(context, AppRouter.explore);
+  } else {
+    if (!mounted) return;
+    final msg = vm.errorMessage ?? 'Error al registrar usuario';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 }
 }
