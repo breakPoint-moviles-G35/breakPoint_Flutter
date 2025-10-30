@@ -74,13 +74,40 @@ Future<void> main() async {
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
       ],
-      child: const MyApp(),
+      child: MyApp(authRepo: authRepo),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AuthRepository authRepo;
+  
+  const MyApp({required this.authRepo, super.key});
+
+  /// Construye la pantalla inicial basada en la estrategia de conectividad eventual
+  Widget _buildInitialScreen() {
+    return FutureBuilder<bool>(
+      future: authRepo.canAutoLogin(),
+      builder: (context, snapshot) {
+        // Mientras se verifica, muestra un loader
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        
+        // Solo permite auto-login si hay usuario Y NO hay internet (conectividad eventual)
+        if (snapshot.hasData && snapshot.data == true) {
+          return const ExploreScreen();
+        }
+        
+        // En cualquier otro caso, va a login para pedir credenciales
+        return const LoginScreen();
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +117,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.deepPurple,
       ),
-      initialRoute: AppRouter.login,
+      home: _buildInitialScreen(),
       routes: {
         AppRouter.login: (context) =>  const LoginScreen(),
         AppRouter.explore: (context) => const ExploreScreen(),

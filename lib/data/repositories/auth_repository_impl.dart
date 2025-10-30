@@ -1,5 +1,7 @@
 // data/repositories/auth_repository_impl.dart
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:io';
 import '../../domain/repositories/auth_repository.dart';
 import '../services/auth_api.dart';
 
@@ -61,5 +63,46 @@ class AuthRepositoryImpl implements AuthRepository {
     await prefs.remove('auth_token');
     await prefs.remove('auth_user');
     await prefs.remove('user_id');
+  }
+
+  @override
+  Future<bool> isUserLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    return userId != null && userId.isNotEmpty;
+  }
+
+  @override
+  Future<bool> hasInternetConnection() async {
+    try {
+      // Primero verifica el estado de conectividad de la red
+      final connectivityResult = await (Connectivity().checkConnectivity());
+      
+      // Si no hay conectividad de red (ni WiFi, ni móvil, ni ethernet), retorna false
+      if (connectivityResult == ConnectivityResult.none) {
+        return false;
+      }
+      
+      // Si hay conectividad de red, verifica que realmente pueda conectarse a internet
+      // haciendo un ping a un servidor confiable (Google DNS)
+      final result = await InternetAddress.lookup('google.com')
+          .timeout(const Duration(seconds: 3));
+      
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (e) {
+      // Si hay error, asumimos que no hay conexión
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> canAutoLogin() async {
+    // Solo permite auto-login si:
+    // 1. Hay un usuario guardado en SharedPreferences Y
+    // 2. NO hay conexión a internet (estrategia de conectividad eventual)
+    final hasUser = await isUserLoggedIn();
+    final hasInternet = await hasInternetConnection();
+    
+    return hasUser && !hasInternet;
   }
 }
