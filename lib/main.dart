@@ -47,10 +47,10 @@ Future<void> main() async {
   
   AuthRepository? authRepoRef; // para exponer el token al interceptor
   
-
+  //  SIMULADOR : 'http://10.0.2.2:3000' 
   // Configuración de red y repos
   final dioClient = DioClient(
-    'http://10.0.2.2:3000',
+    'http://157.253.225.104:3000',
     tokenProvider: () => authRepoRef?.token,
   );
   final api = SpaceApi(dioClient.dio);
@@ -82,13 +82,40 @@ Future<void> main() async {
         Provider<HostRepository>(create: (_) => hostRepo),
         Provider<ReviewRepository>(create: (_) => reviewRepo),
       ],
-      child: const MyApp(),
+      child: MyApp(authRepo: authRepo),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AuthRepository authRepo;
+  
+  const MyApp({required this.authRepo, super.key});
+
+  /// Construye la pantalla inicial basada en la estrategia de conectividad eventual
+  Widget _buildInitialScreen() {
+    return FutureBuilder<bool>(
+      future: authRepo.canAutoLogin(),
+      builder: (context, snapshot) {
+        // Mientras se verifica, muestra un loader
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        
+        // Solo permite auto-login si hay usuario Y NO hay internet (conectividad eventual)
+        if (snapshot.hasData && snapshot.data == true) {
+          return const ExploreScreen();
+        }
+        
+        // En cualquier otro caso, va a login para pedir credenciales
+        return const LoginScreen();
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +125,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.deepPurple,
       ),
-      initialRoute: AppRouter.login,
+      home: _buildInitialScreen(),
       routes: {
         AppRouter.login: (context) =>  const LoginScreen(),
         AppRouter.explore: (context) => const ExploreScreen(),
