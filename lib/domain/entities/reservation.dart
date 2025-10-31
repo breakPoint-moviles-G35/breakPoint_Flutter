@@ -49,8 +49,8 @@ class Reservation {
           ? totalAmountValue.toDouble()
           : double.tryParse(totalAmountValue?.toString() ?? '0') ?? 0.0,
       currency: json['currency'] ?? 'USD',
-      slotStart: DateTime.tryParse(slotStartValue ?? '') ?? DateTime.now(),
-      slotEnd: DateTime.tryParse(slotEndValue ?? '') ?? DateTime.now(),
+      slotStart: (DateTime.tryParse(slotStartValue ?? '') ?? DateTime.now()).toLocal(),
+      slotEnd: (DateTime.tryParse(slotEndValue ?? '') ?? DateTime.now()).toLocal(),
       status: _parseStatus(json['status']),
     );
   }

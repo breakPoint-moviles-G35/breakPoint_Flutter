@@ -98,6 +98,8 @@ class ProfileScreen extends StatelessWidget {
         onDestinationSelected: (i) {
           if (i == 0) {
             Navigator.pushReplacementNamed(context, AppRouter.explore);
+          } else if (i == 1) {
+            Navigator.pushReplacementNamed(context, AppRouter.rate);
           } else if (i == 2) {
             Navigator.pushReplacementNamed(context, AppRouter.reservations);
           }
