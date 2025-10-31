@@ -1,200 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:breakpoint/routes/app_router.dart';
+import 'package:breakpoint/presentation/widgets/offline_banner.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
+import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
-import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 
-class ReservationsScreen extends StatefulWidget {
+class ReservationsScreen extends StatelessWidget {
   const ReservationsScreen({super.key});
 
   @override
-  State<ReservationsScreen> createState() => _ReservationsScreenState();
-}
-
-class _ReservationsScreenState extends State<ReservationsScreen> {
-  bool isLoading = false;
-  String? error;
-  List<Reservation> reservations = [];
-  String? currentUserId;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  /// 🔹 Cargar reservas activas del usuario
-  Future<void> _load() async {
-    try {
-      setState(() {
-        isLoading = true;
-        error = null;
-      });
-
-      // Leer user_id desde SharedPreferences
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final raw = prefs.getString('auth_user');
-        if (raw != null && raw.isNotEmpty) {
-          final regex = RegExp(r'id[:=]\s*([\w-]+)');
-          final m = regex.firstMatch(raw);
-          if (m != null) currentUserId = m.group(1);
-        }
-      } catch (_) {}
-
-      final repo = context.read<ReservationRepository>();
-      final all = await repo.getUserReservations();
-      final now = DateTime.now();
-
-      // 🔹 Mostrar reservas futuras o en curso (estado CONFIRMED)
-      reservations = all.where((r) {
-        final isUpcoming = r.slotStart.isAfter(now);
-        final isOngoing = r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
-        return r.status == ReservationStatus.confirmed && (isUpcoming || isOngoing);
-      }).toList()
-        ..sort((a, b) => a.slotStart.compareTo(b.slotStart));
-    } catch (e) {
-      error = 'Error al cargar reservas: $e';
-    } finally {
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
-
-  /// 🔹 Eliminar una reserva
-  Future<void> _cancelReservation(BuildContext context, Reservation r) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar reserva'),
-        content: Text(
-            '¿Seguro que deseas cancelar la reserva de "${r.spaceTitle}"?\n\nEsta acción no se puede deshacer.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('No'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sí, cancelar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      final repo = context.read<ReservationRepository>();
-      await repo.cancelReservation(r.id);
-
-      if (mounted) {
-        setState(() {
-          reservations.removeWhere((x) => x.id == r.id);
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reserva cancelada exitosamente.')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cancelar la reserva: $e')),
-      );
-    }
-  }
-
-  InputDecoration _searchDecoration() => InputDecoration(
-        hintText: 'Reservas activas',
-        prefixIcon: const Icon(Icons.search, size: 20),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: Colors.black12),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: Colors.black54, width: 1),
-        ),
-      );
-
-  @override
   Widget build(BuildContext context) {
+    final vm = context.watch<ReservationsViewModel>();
+    vm.init();
+
     return Scaffold(
       appBar: AppBar(
-        title: TextField(decoration: _searchDecoration()),
+        title: const Text('Mis Reservas Activas'),
         centerTitle: true,
-        toolbarHeight: 64,
+        actions: [
+          if (vm.isOffline)
+            const Padding(
+              padding: EdgeInsets.only(right: 8.0),
+              child: Icon(Icons.cloud_off, color: Colors.redAccent),
+            ),
+        ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: Builder(builder: (context) {
-          if (isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (error != null) {
-            return Center(child: Text(error!));
-          }
-          if (reservations.isEmpty) {
-            return const Center(child: Text('No tienes reservas activas.'));
-          }
+      body: Column(
+        children: [
+          // 🔹 Banner de desconexión
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: vm.isOffline
+                ? OfflineBanner(onRetry: vm.retry)
+                : const SizedBox.shrink(),
+          ),
 
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            itemCount: reservations.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
-            itemBuilder: (context, i) {
-              final r = reservations[i];
-              return Column(
-                children: [
-                  SpaceCard(
-                    title: r.spaceTitle,
-                    subtitle: '',
-                    rating: 0,
-                    priceCOP: null,
-                    metaLines: [
-                      _formatSlot(r),
-                      'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
-                    ],
-                    rightTag: r.statusText,
-                    imageAspectRatio: 16 / 9,
-                    imageUrl: r.spaceImageUrl,
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+          Expanded(
+            child: Builder(builder: (_) {
+              if (vm.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (vm.error != null && vm.reservations.isEmpty) {
+                return Center(child: Text(vm.error!));
+              }
+
+              if (vm.reservations.isEmpty) {
+                return const Center(
+                  child: Text('No tienes reservas activas.'),
+                );
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                itemCount: vm.reservations.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (context, i) {
+                  final r = vm.reservations[i];
+                  return Column(
                     children: [
-                      // Botón de Checkout si está en curso
-                      if (_canCheckout(r))
-                        TextButton.icon(
-                          onPressed: () => _doCheckout(context, r),
-                          icon: const Icon(Icons.logout, color: Colors.green),
-                          label: const Text('Checkout',
-                              style: TextStyle(color: Colors.green)),
-                        ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: () => _cancelReservation(context, r),
-                        icon:
-                            const Icon(Icons.delete_outline, color: Colors.red),
-                        label: const Text(
-                          'Cancelar reserva',
-                          style: TextStyle(color: Colors.red),
-                        ),
+                      SpaceCard(
+                        title: r.spaceTitle,
+                        subtitle:
+                            '${r.formattedDate} • ${r.formattedTimeRange}',
+                        rating: 0,
+                        priceCOP: r.totalAmount,
+                        rightTag: r.statusText,
+                        imageAspectRatio: 16 / 9,
+                        imageUrl: r.spaceImageUrl,
+                        onTap: () {},
                       ),
                     ],
-                  ),
-                ],
+                  );
+                },
               );
-            },
-          );
-        }),
+            }),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 2,
@@ -217,60 +100,5 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         ],
       ),
     );
-  }
-
-  /// 🔹 Formatear texto de fecha y hora de la reserva
-  String _formatSlot(Reservation r) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    final s = r.slotStart.toLocal();
-    final e = r.slotEnd.toLocal();
-    final day = '${two(s.day)}/${two(s.month)}/${s.year}';
-    final t =
-        '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
-    return 'Horas reservadas: $t · $day';
-  }
-
-  bool _canCheckout(Reservation r) {
-    final now = DateTime.now();
-    final inWindow = r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
-    return r.status == ReservationStatus.confirmed && inWindow;
-  }
-
-  Future<void> _doCheckout(BuildContext context, Reservation r) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Checkout'),
-        content: Text(
-            '¿Desea hacer el checkout de la habitación "${r.spaceTitle}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      final repo = context.read<ReservationRepository>();
-      await repo.checkoutReservation(r.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Checkout realizado correctamente.')),
-      );
-      // recargar listado
-      await _load();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al hacer checkout: $e')),
-      );
-    }
   }
 }
