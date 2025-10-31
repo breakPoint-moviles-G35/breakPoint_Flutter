@@ -4,12 +4,13 @@ import 'package:breakpoint/domain/entities/space.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/host_repository.dart';
+import 'package:breakpoint/domain/repositories/review_repository.dart';
 import 'package:breakpoint/presentation/explore/explore_screen';
 import 'package:breakpoint/presentation/login/login_screen';
-
 import 'package:breakpoint/presentation/login/viewmodel/auth_viewmodel.dart';
 import 'package:breakpoint/presentation/map/map_screen.dart';
 import 'package:breakpoint/presentation/reservations/reservations_screen';
+import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:breakpoint/routes/app_router.dart';
@@ -26,10 +27,8 @@ import 'data/services/host_api.dart';
 import 'data/repositories/host_repository_impl.dart';
 import 'data/services/review_api.dart';
 import 'data/repositories/review_repository_impl.dart';
-import 'domain/repositories/review_repository.dart';
 
 // Presentation layer
-
 import 'presentation/explore/viewmodel/explore_viewmodel.dart';
 import 'presentation/host/viewmodel/host_viewmodel.dart';
 import 'presentation/details/space_detail_screen.dart';
@@ -43,19 +42,20 @@ Future<void> main() async {
 
   AuthRepository? authRepoRef; // para exponer el token al interceptor
 
-  //  SIMULADOR : 'http://10.0.2.2:3000'
-  // Configuración de red y repos
+  // Configuración de red y repositorios
   final dioClient = DioClient(
-    'http://10.0.2.2:3000',
+    'http://10.0.2.2:3000', // simulador local
     tokenProvider: () => authRepoRef?.token,
   );
+
+  // Inicialización de APIs y repositorios
   final api = SpaceApi(dioClient.dio);
   final repo = SpaceRepositoryImpl(api);
 
   final authApi = AuthApi(dioClient.dio);
   final authRepo = AuthRepositoryImpl(authApi);
   await authRepo.hydrate();
-  authRepoRef = authRepo; // conecta el provider de token del interceptor
+  authRepoRef = authRepo;
 
   final reservationApi = ReservationApi(dioClient.dio);
   final reservationRepo = ReservationRepositoryImpl(reservationApi);
@@ -66,19 +66,34 @@ Future<void> main() async {
   final reviewApi = ReviewApi(dioClient.dio);
   final reviewRepo = ReviewRepositoryImpl(reviewApi);
 
+  // ===============================================
+  // PROVIDERS GLOBALES
+  // ===============================================
   runApp(
     MultiProvider(
       providers: [
+        // ExploreViewModel
         ChangeNotifierProvider(
           create: (_) => ExploreViewModel(repo)
             ..load()
-            ..loadRecommendations(), // ViewModel listo
+            ..loadRecommendations(),
         ),
+
+        // Auth y Host
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
         ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
+
+        // Repositorios base
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
         Provider<ReviewRepository>(create: (_) => reviewRepo),
+
+        //ReservationsViewModel 
+        ChangeNotifierProvider(
+          create: (context) => ReservationsViewModel(
+            context.read<ReservationRepository>(),
+          ),
+        ),
       ],
       child: MyApp(authRepo: authRepo),
     ),
@@ -102,12 +117,12 @@ class MyApp extends StatelessWidget {
           );
         }
 
-        // Solo permite auto-login si hay usuario Y NO hay internet (conectividad eventual)
+        // Si hay sesión previa (auto-login)
         if (snapshot.hasData && snapshot.data == true) {
           return const ExploreScreen();
         }
 
-        // En cualquier otro caso, va a login para pedir credenciales
+        // En cualquier otro caso, va a login
         return const LoginScreen();
       },
     );
@@ -117,7 +132,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BreakPoint App',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.deepPurple),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.deepPurple,
+      ),
       home: _buildInitialScreen(),
       routes: {
         AppRouter.login: (context) => const LoginScreen(),
@@ -128,26 +146,26 @@ class MyApp extends StatelessWidget {
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
-          space: Space(
-            id: "demo-id",
-            title: "Sample Space",
-            subtitle: "A nice place to stay",
-            price: 12000.0,
-            rating: 4.5,
-            capacity: 2,
-            rules: "No fumar",
-            amenities: ["WiFi", "TV"],
-            imageUrl: "",
-          ),
-        ),
+              space: Space(
+                id: "demo-id",
+                title: "Sample Space",
+                subtitle: "A nice place to stay",
+                price: 12000.0,
+                rating: 4.5,
+                capacity: 2,
+                rules: "No fumar",
+                amenities: ["WiFi", "TV"],
+                imageUrl: "",
+              ),
+            ),
         AppRouter.reservation: (context) => ReservationScreen(
-          spaceTitle: 'Sample Space',
-          spaceAddress: '123 Business District, Suite 456, City Center',
-          spaceRating: 4.8,
-          reviewCount: 127,
-          pricePerHour: 25.0,
-          spaceId: 'demo-space-id',
-        ),
+              spaceTitle: 'Sample Space',
+              spaceAddress: '123 Business District, Suite 456, City Center',
+              spaceRating: 4.8,
+              reviewCount: 127,
+              pricePerHour: 25.0,
+              spaceId: 'demo-space-id',
+            ),
       },
     );
   }
