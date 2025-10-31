@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/space.dart';
 import '../../domain/entities/host.dart';
-import '../../domain/repositories/host_repository.dart';
+// import '../../domain/repositories/host_repository.dart';
+import '../../domain/repositories/reservation_repository.dart';
 import '../reservations/reservation_screen.dart';
 import '../host/host_detail_screen.dart';
 import '../host/viewmodel/host_viewmodel.dart';
@@ -10,7 +11,7 @@ import '../reviews/review_screen.dart';
 
 import '../../../data/services/review_api.dart';
 import '../../../data/repositories/review_repository_impl.dart';
-import '../../../domain/repositories/review_repository.dart';
+// import '../../../domain/repositories/review_repository.dart';
 import '../../../domain/entities/review.dart';
 import 'package:dio/dio.dart';
 import 'viewmodel/review_summary_viewmodel.dart';
@@ -28,6 +29,9 @@ class SpaceDetailScreen extends StatefulWidget {
 }
 
 class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
+  List<List<dynamic>> _chipsData = const [];
+  List<double> _barHeights = const [0, 0, 0, 0, 0, 0];
+  final List<String> _xLabels = const ['6a', '9a', '12p', '3p', '6p', '9p'];
   @override
   void initState() {
     super.initState();
@@ -35,7 +39,55 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       final hostViewModel = Provider.of<HostViewModel>(context, listen: false);
       hostViewModel.clearHost();
       hostViewModel.loadHostBySpaceId(widget.space.id);
+      _loadStatsFromBookings();
     });
+  }
+
+  Future<void> _loadStatsFromBookings() async {
+    try {
+      final repo = context.read<ReservationRepository>();
+      final all = await repo.getUserReservations();
+      final bySpace = all.where((r) => r.spaceId == widget.space.id).toList()
+        ..sort((a, b) => b.slotStart.compareTo(a.slotStart));
+      final last = bySpace.take(5).toList();
+
+      // Conteo por hora de inicio
+      final Map<int, int> countByHour = {};
+      for (final r in last) {
+        final h = r.slotStart.hour; // local
+        countByHour[h] = (countByHour[h] ?? 0) + 1;
+      }
+
+      // Chips: top 4 horas
+      String fmtHour(int h) => '${h.toString().padLeft(2, '0')}:00';
+      final entries = countByHour.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final chips = entries.take(4).map((e) => [fmtHour(e.key), e.value]).toList();
+
+      // Barras: buckets por franja horaria
+      List<int> buckets = List.filled(6, 0);
+      int bucketIndex(int h) {
+        if (h >= 21 || h < 6) return 5; // 9p
+        if (h >= 18) return 4; // 6p
+        if (h >= 15) return 3; // 3p
+        if (h >= 12) return 2; // 12p
+        if (h >= 9) return 1; // 9a
+        return 0; // 6a
+      }
+      countByHour.forEach((h, c) => buckets[bucketIndex(h)] += c);
+      final maxCount = buckets.isEmpty ? 0 : buckets.reduce((a, b) => a > b ? a : b);
+      final bars = maxCount == 0
+          ? List.filled(6, 0.0)
+          : buckets.map((c) => c / maxCount).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _chipsData = chips;
+        _barHeights = bars;
+      });
+    } catch (_) {
+      // dejamos los datos en cero si falla
+    }
   }
 
   @override
@@ -444,16 +496,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     );
   }
 
-  // -------------------- Stats Mock --------------------
+  // -------------------- Stats (últimas 5 reservas del usuario para este espacio) --------------------
   Widget _buildStatsSection(BuildContext context) {
-    final chips = const [
-      ['07:00', 2],
-      ['08:00', 2],
-      ['14:00', 1],
-      ['15:00', 1],
-    ];
-    final barHeights = <double>[0.0, 1.0, 1.0, 0.6, 0.0, 0.0];
-    final xLabels = const ['6a', '9a', '12p', '3p', '6p', '9p'];
+    final chips = _chipsData;
+    final barHeights = _barHeights;
+    final xLabels = _xLabels;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -465,7 +512,13 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                for (final c in chips)
+                if (chips.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16.0),
+                    child: Text('Sin datos recientes'),
+                  )
+                else
+                  for (final c in chips)
                   Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: InputChip(

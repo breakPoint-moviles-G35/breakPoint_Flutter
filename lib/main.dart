@@ -46,7 +46,7 @@ Future<void> main() async {
   //  SIMULADOR : 'http://10.0.2.2:3000'
   // Configuración de red y repos
   final dioClient = DioClient(
-    'http://192.168.0.7:3000',
+    'http://10.0.2.2:3000',
     tokenProvider: () => authRepoRef?.token,
   );
   final api = SpaceApi(dioClient.dio);
