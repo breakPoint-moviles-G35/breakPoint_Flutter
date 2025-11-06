@@ -1,22 +1,32 @@
+import '../entities/user.dart';
+
 abstract class AuthRepository {
-  Future<void> login(String email, String password);
+  /// Inicia sesión y devuelve el usuario autenticado
+  Future<User> login(String email, String password);
+
+  /// Token JWT actual
   String? get token;
-  Map<String, dynamic>? get currentUser;
+
+  /// Usuario actual en memoria
+  User? get currentUser;
+
+  /// Cerrar sesión y limpiar datos
   Future<void> logout();
-  
-  /// Verifica si hay un usuario guardado en SharedPreferences
+
+  /// Verifica si hay un usuario guardado en caché
   Future<bool> isUserLoggedIn();
-  
-  /// Verifica si el dispositivo tiene conexión a internet
+
+  /// Verifica conectividad real
   Future<bool> hasInternetConnection();
-  
-  /// Verifica si se puede permitir el login automático basado en conectividad
+
+  /// Determina si se puede iniciar sesión offline
   Future<bool> canAutoLogin();
-  
+
+  /// Registra un nuevo usuario
   Future<void> register({
     required String email,
     required String password,
-    required String role, // "Student" | "Host"
+    required String role, 
     String? name,
   });
 }

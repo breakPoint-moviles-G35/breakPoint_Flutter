@@ -1,14 +1,16 @@
-// data/repositories/auth_repository_impl.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:convert';
 import 'dart:io';
+
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/entities/user.dart';
 import '../services/auth_api.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi api;
   String? _token;
-  Map<String, dynamic>? _user;
+  User? _user;
 
   AuthRepositoryImpl(this.api);
 
@@ -16,32 +18,36 @@ class AuthRepositoryImpl implements AuthRepository {
   String? get token => _token;
 
   @override
-  Map<String, dynamic>? get currentUser => _user;
+  User? get currentUser => _user;
 
-  /// Carga el token y un user_id mínimo desde SharedPreferences al iniciar la app
+  /// 🔹 Carga el token y usuario desde cache local
   Future<void> hydrate() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('auth_token');
-    final uid = prefs.getString('user_id');
-    if (uid != null && uid.isNotEmpty) {
-      _user = {'id': uid};
+    final jsonStr = prefs.getString('auth_user');
+    if (jsonStr != null) {
+      _user = User.fromJson(jsonDecode(jsonStr));
     }
   }
 
   @override
-  Future<void> login(String email, String password) async {
+  Future<User> login(String email, String password) async {
     final res = await api.login(email: email, password: password);
-    _token = res['access_token'] as String?;
-    _user  = res['user'] as Map<String, dynamic>?;
 
-    if (_token == null) {
-      throw Exception('Token ausente en login');
+    _token = res['access_token'] as String?;
+    final userData = res['user'] as Map<String, dynamic>?;
+
+    if (_token == null || userData == null) {
+      throw Exception('Respuesta inválida del servidor');
     }
+
+    _user = User.fromJson(userData, token: _token);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', _token!);
-    await prefs.setString('user_id', (_user?['id'] as String? ?? ''));
-    await prefs.setString('auth_user', (_user ?? {}).toString());
+    await prefs.setString('auth_user', jsonEncode(_user!.toJson()));
+
+    return _user!;
   }
 
   @override
@@ -51,7 +57,6 @@ class AuthRepositoryImpl implements AuthRepository {
     required String role,
     String? name,
   }) async {
-    // No guarda token (eso se hace en login si autoLogin=true)
     await api.register(email: email, password: password, role: role, name: name);
   }
 
@@ -62,47 +67,33 @@ class AuthRepositoryImpl implements AuthRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     await prefs.remove('auth_user');
-    await prefs.remove('user_id');
   }
 
   @override
   Future<bool> isUserLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('user_id');
-    return userId != null && userId.isNotEmpty;
+    final user = prefs.getString('auth_user');
+    return user != null;
   }
 
   @override
   Future<bool> hasInternetConnection() async {
     try {
-      // Primero verifica el estado de conectividad de la red
       final connectivityResult = await (Connectivity().checkConnectivity());
-      
-      // Si no hay conectividad de red (ni WiFi, ni móvil, ni ethernet), retorna false
-      if (connectivityResult == ConnectivityResult.none) {
-        return false;
-      }
-      
-      // Si hay conectividad de red, verifica que realmente pueda conectarse a internet
-      // haciendo un ping a un servidor confiable (Google DNS)
+      if (connectivityResult == ConnectivityResult.none) return false;
+
       final result = await InternetAddress.lookup('google.com')
           .timeout(const Duration(seconds: 3));
-      
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } catch (e) {
-      // Si hay error, asumimos que no hay conexión
+    } catch (_) {
       return false;
     }
   }
 
   @override
   Future<bool> canAutoLogin() async {
-    // Solo permite auto-login si:
-    // 1. Hay un usuario guardado en SharedPreferences Y
-    // 2. NO hay conexión a internet (estrategia de conectividad eventual)
     final hasUser = await isUserLoggedIn();
     final hasInternet = await hasInternetConnection();
-    
     return hasUser && !hasInternet;
   }
 }

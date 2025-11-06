@@ -1,6 +1,6 @@
-import '../../domain/entities/host.dart';
-import '../../domain/repositories/host_repository.dart';
-import '../services/host_api.dart';
+import 'package:breakpoint/domain/entities/host.dart';
+import 'package:breakpoint/domain/repositories/host_repository.dart';
+import 'package:breakpoint/data/services/host_api.dart';
 
 class HostRepositoryImpl implements HostRepository {
   final HostApi _api;
@@ -14,12 +14,12 @@ class HostRepositoryImpl implements HostRepository {
     required String userId,
   }) async {
     try {
-      final response = await _api.createHostProfile(
+      final json = await _api.createHostProfile(
         verificationStatus: verificationStatus,
         payoutMethod: payoutMethod,
         userId: userId,
       );
-      return Host.fromJson(response);
+      return Host.fromJson(json);
     } catch (e) {
       throw Exception('Error al crear el perfil de host: $e');
     }
@@ -28,30 +28,40 @@ class HostRepositoryImpl implements HostRepository {
   @override
   Future<List<Host>> getAllHostProfiles() async {
     try {
-      final response = await _api.getAllHostProfiles();
-      return response.map((json) => Host.fromJson(json)).toList();
+      final jsonList = await _api.getAllHostProfiles();
+      return jsonList.map((j) => Host.fromJson(j)).toList();
     } catch (e) {
       throw Exception('Error al obtener los perfiles de host: $e');
     }
   }
 
   @override
-  Future<Host> getMyHostProfile() async {
+  Future<Host> getHostProfileById(String id) async {
     try {
-      final response = await _api.getMyHostProfile();
-      return Host.fromJson(response);
+      final json = await _api.getHostProfileById(id);
+      return Host.fromJson(json);
     } catch (e) {
-      throw Exception('Error al obtener mi perfil de host: $e');
+      throw Exception('Error al obtener el perfil de host por ID: $e');
     }
   }
 
   @override
-  Future<Host> getHostProfileById(String id) async {
+  Future<Host> getHostProfileByUser(String userId) async {
     try {
-      final response = await _api.getHostProfileById(id);
-      return Host.fromJson(response);
+      final json = await _api.getHostProfileByUser(userId);
+      return Host.fromJson(json);
     } catch (e) {
-      throw Exception('Error al obtener el perfil de host: $e');
+      throw Exception('Error al obtener el perfil de host por usuario: $e');
+    }
+  }
+
+  @override
+  Future<Host> getMyHostProfile() async {
+    try {
+      final json = await _api.getMyHostProfile();
+      return Host.fromJson(json);
+    } catch (e) {
+      throw Exception('Error al obtener mi perfil de host: $e');
     }
   }
 
@@ -59,8 +69,6 @@ class HostRepositoryImpl implements HostRepository {
   Future<Host?> getHostBySpaceId(String spaceId) async {
     try {
       final hosts = await getAllHostProfiles();
-      
-      // Buscar el host que tenga el spaceId en sus espacios
       for (var host in hosts) {
         if (host.spaces != null) {
           for (var space in host.spaces!) {
@@ -70,7 +78,6 @@ class HostRepositoryImpl implements HostRepository {
           }
         }
       }
-      
       return null;
     } catch (e) {
       throw Exception('Error al obtener el host del espacio: $e');

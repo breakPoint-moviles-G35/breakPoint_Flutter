@@ -9,8 +9,9 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthViewModel>();
-    final email = auth.repo.currentUser?['email']?.toString() ?? 'user@uniandes.edu.co';
-    final role = auth.repo.currentUser?['role']?.toString() ?? 'Student';
+    final user = auth.repo.currentUser;
+    final email = user?.email ?? 'user@uniandes.edu.co';
+    final role = user?.role ?? 'Student';
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF5FF),
@@ -37,6 +38,8 @@ class ProfileScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
+
+              // Información del usuario
               Text(
                 email,
                 style: const TextStyle(fontSize: 16),
@@ -114,5 +117,3 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 }
-
-
