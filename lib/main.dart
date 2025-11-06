@@ -5,6 +5,7 @@ import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/host_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
+import 'package:breakpoint/domain/repositories/space_repository.dart';
 import 'package:breakpoint/presentation/explore/explore_screen';
 import 'package:breakpoint/presentation/login/login_screen';
 import 'package:breakpoint/presentation/login/viewmodel/auth_viewmodel.dart';
@@ -37,6 +38,10 @@ import 'presentation/reservations/reservation_screen.dart';
 import 'presentation/profile/profile_screen.dart';
 import 'presentation/rate/rate_screen.dart';
 
+// 🔹 NUEVAS PANTALLAS DE HOST
+import 'presentation/host/host_spaces_screen.dart';
+import 'presentation/host/create_space_screen.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -44,13 +49,13 @@ Future<void> main() async {
 
   // Configuración de red y repositorios
   final dioClient = DioClient(
-    'http://10.0.2.2:3000', // simulador local
+    'http://10.0.2.2:3000', 
     tokenProvider: () => authRepoRef?.token,
   );
 
   // Inicialización de APIs y repositorios
-  final api = SpaceApi(dioClient.dio);
-  final repo = SpaceRepositoryImpl(api);
+  final spaceApi = SpaceApi(dioClient.dio);
+  final spaceRepo = SpaceRepositoryImpl(spaceApi);
 
   final authApi = AuthApi(dioClient.dio);
   final authRepo = AuthRepositoryImpl(authApi);
@@ -66,29 +71,31 @@ Future<void> main() async {
   final reviewApi = ReviewApi(dioClient.dio);
   final reviewRepo = ReviewRepositoryImpl(reviewApi);
 
-  // ===============================================
-  // PROVIDERS GLOBALES
-  // ===============================================
   runApp(
     MultiProvider(
       providers: [
         // ExploreViewModel
         ChangeNotifierProvider(
-          create: (_) => ExploreViewModel(repo)
+          create: (_) => ExploreViewModel(spaceRepo)
             ..load()
             ..loadRecommendations(),
         ),
 
         // Auth y Host
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
-        ChangeNotifierProvider(create: (_) => HostViewModel(hostRepo)),
+
+        // 🔹 HostViewModel ahora recibe dos repos: host y space
+        ChangeNotifierProvider(
+          create: (_) => HostViewModel(hostRepo, spaceRepo),
+        ),
 
         // Repositorios base
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
         Provider<ReviewRepository>(create: (_) => reviewRepo),
+        Provider<SpaceRepository>(create: (_) => spaceRepo),
 
-        //ReservationsViewModel 
+        // ReservationsViewModel
         ChangeNotifierProvider(
           create: (context) => ReservationsViewModel(
             context.read<ReservationRepository>(),
@@ -105,24 +112,21 @@ class MyApp extends StatelessWidget {
 
   const MyApp({required this.authRepo, super.key});
 
-  /// Construye la pantalla inicial basada en la estrategia de conectividad eventual
+
   Widget _buildInitialScreen() {
     return FutureBuilder<bool>(
       future: authRepo.canAutoLogin(),
       builder: (context, snapshot) {
-        // Mientras se verifica, muestra un loader
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Si hay sesión previa (auto-login)
         if (snapshot.hasData && snapshot.data == true) {
           return const ExploreScreen();
         }
 
-        // En cualquier otro caso, va a login
         return const LoginScreen();
       },
     );
@@ -138,6 +142,7 @@ class MyApp extends StatelessWidget {
       ),
       home: _buildInitialScreen(),
       routes: {
+        // General
         AppRouter.login: (context) => const LoginScreen(),
         AppRouter.explore: (context) => const ExploreScreen(),
         AppRouter.filters: (context) => const DateFilterScreen(),
@@ -145,6 +150,8 @@ class MyApp extends StatelessWidget {
         AppRouter.rate: (context) => const RateScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
+
+        // Espacios
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
               space: Space(
                 id: "demo-id",
@@ -166,6 +173,10 @@ class MyApp extends StatelessWidget {
               pricePerHour: 25.0,
               spaceId: 'demo-space-id',
             ),
+
+        // Host / Arrendador
+        AppRouter.hostSpaces: (context) => const HostSpacesScreen(),
+        AppRouter.createSpace: (context) => const CreateSpaceScreen(),
       },
     );
   }

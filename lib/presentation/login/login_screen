@@ -16,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
 
-  // Controllers solo para Register (Login usa los del VM)
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _regEmailCtrl = TextEditingController();
   final TextEditingController _regPassCtrl = TextEditingController();
@@ -67,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            // Toggle Login / Register
             Center(
               child: Container(
                 padding: const EdgeInsets.all(4),
@@ -101,7 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Formularios
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               child: _isLogin
@@ -117,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       passCtrl: _regPassCtrl,
                       pass2Ctrl: _regPass2Ctrl,
                       inputStyle: _inputStyle,
-                      onSubmit: _onRegister, // <- ahora pasa el rol
+                      onSubmit: _onRegister,
                     ),
             ),
           ],
@@ -126,33 +123,37 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Acción de “Crear cuenta”: ahora recibe el rol seleccionado
+  /// Acción de “Crear cuenta”: ahora redirige según rol
   Future<void> _onRegister(String roleValue) async {
-  if (!_registerFormKey.currentState!.validate()) return;
+    if (!_registerFormKey.currentState!.validate()) return;
 
-  final vm = context.read<AuthViewModel>();
+    final vm = context.read<AuthViewModel>();
 
-  final ok = await vm.register(
-    email: _regEmailCtrl.text.trim(),
-    password: _regPassCtrl.text,
-    role: roleValue,          // "Student" | "Host"
-    name: _nameCtrl.text.trim().isEmpty ? null : _nameCtrl.text.trim(),
-    autoLogin: true,          // login automático tras crear
-  );
-
-  if (ok && context.mounted) {
-    Navigator.pushReplacementNamed(context, AppRouter.explore);
-  } else {
-    if (!mounted) return;
-    final msg = vm.errorMessage ?? 'Error al registrar usuario';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+    final ok = await vm.register(
+      email: _regEmailCtrl.text.trim(),
+      password: _regPassCtrl.text,
+      role: roleValue,
+      name: _nameCtrl.text.trim().isEmpty ? null : _nameCtrl.text.trim(),
+      autoLogin: true,
     );
+
+    if (ok && context.mounted) {
+      // 🔹 Redirección según el rol
+      if (roleValue == 'Host') {
+        Navigator.pushReplacementNamed(context, AppRouter.hostSpaces);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRouter.explore);
+      }
+    } else {
+      if (!mounted) return;
+      final msg = vm.errorMessage ?? 'Error al registrar usuario';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    }
   }
 }
-}
 
-/// Botoncito de la píldora superior
 class _TogglePill extends StatelessWidget {
   final String label;
   final bool selected;
@@ -228,20 +229,17 @@ class _LoginForm extends StatelessWidget {
           const SizedBox(height: 20),
 
           if (vm.errorMessage != null)
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text(
-          vm.errorMessage!,
-          style: const TextStyle(
-            color: Colors.redAccent,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-
-
-
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                vm.errorMessage!,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
 
           SizedBox(
             height: 48,
@@ -252,13 +250,22 @@ class _LoginForm extends StatelessWidget {
                   : () async {
                       if (!formKey.currentState!.validate()) return;
                       final ok = await vm.login();
+
                       if (ok && context.mounted) {
-                        Navigator.pushReplacementNamed(
-                            context, AppRouter.explore);
+                        final role = vm.userRole ?? 'Student';
+                        // 🔹 Redirección según rol al iniciar sesión
+                        if (role == 'Host') {
+                          Navigator.pushReplacementNamed(
+                              context, AppRouter.hostSpaces);
+                        } else {
+                          Navigator.pushReplacementNamed(
+                              context, AppRouter.explore);
+                        }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(vm.errorMessage ?? 'Error de inicio de sesión'),
+                            content: Text(vm.errorMessage ??
+                                'Error de inicio de sesión'),
                           ),
                         );
                       }
@@ -291,7 +298,7 @@ class _LoginForm extends StatelessWidget {
   }
 }
 
-/// Formulario de Register con selector de Rol (Estudiante/Arrendador)
+/// Formulario de Register con selector de Rol
 class _RegisterForm extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController nameCtrl;
@@ -317,47 +324,7 @@ class _RegisterForm extends StatefulWidget {
 }
 
 class _RegisterFormState extends State<_RegisterForm> {
-  String _roleValue = 'Student'; // "Student" | "Host"
-
-  /// Valida que el email tenga formato correcto, sin emojis y sin puntos inválidos
-  String? _validateEmail(String email) {
-    // Validar formato básico de email
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    
-    if (!emailRegex.hasMatch(email)) {
-      return 'Ingresa un email válido';
-    }
-    
-    // Verificar que no contenga emojis o caracteres no permitidos
-    // Los emojis y muchos caracteres especiales tienen código Unicode fuera del rango ASCII básico
-    for (final char in email.runes) {
-      if (char > 0x7F) { // Caracteres fuera del ASCII básico (incluye emojis)
-        return 'El email no puede contener emojis o caracteres especiales';
-      }
-    }
-    
-    // Verificar que no tenga puntos consecutivos o al inicio/final de la parte local
-    final parts = email.split('@');
-    if (parts.length != 2) {
-      return 'Ingresa un email válido';
-    }
-    
-    final localPart = parts[0];
-    
-    // No puede empezar o terminar con punto
-    if (localPart.startsWith('.') || localPart.endsWith('.')) {
-      return 'El email no puede empezar o terminar con punto';
-    }
-    
-    // No puede tener puntos consecutivos
-    if (localPart.contains('..')) {
-      return 'El email no puede tener puntos consecutivos';
-    }
-    
-    return null; // Email válido
-  }
+  String _roleValue = 'Student';
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +349,7 @@ class _RegisterFormState extends State<_RegisterForm> {
             decoration: widget.inputStyle('Ingresa tu email'),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Requerido';
-              return _validateEmail(v.trim());
+              return null;
             },
           ),
           const SizedBox(height: 16),
@@ -431,7 +398,7 @@ class _RegisterFormState extends State<_RegisterForm> {
             child: ElevatedButton(
               onPressed: () {
                 if (!widget.formKey.currentState!.validate()) return;
-                widget.onSubmit(_roleValue); // envía "Student" o "Host"
+                widget.onSubmit(_roleValue);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF5C1B6C),
