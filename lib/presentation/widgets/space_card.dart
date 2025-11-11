@@ -6,6 +6,8 @@ class SpaceCard extends StatelessWidget {
   final String subtitle;
   final double rating;
   final double? priceCOP;
+  final double? originalPriceCOP; // precio base antes de descuento (opcional)
+  final Color discountedColor;    // color para precio con descuento
   final List<String>? metaLines;
   final String rightTag;
   final double imageAspectRatio;
@@ -22,6 +24,8 @@ class SpaceCard extends StatelessWidget {
     required this.subtitle,
     required this.rating,
     this.priceCOP,
+    this.originalPriceCOP,
+    this.discountedColor = Colors.green,
     this.metaLines,
     this.rightTag = '',
     this.imageAspectRatio = 16 / 9,
@@ -105,13 +109,37 @@ class SpaceCard extends StatelessWidget {
                               ))
                           .toList(),
                     )
-                  else if (priceCOP != null)
-                    Text(
-                      '\$${priceCOP!.toStringAsFixed(0)} COP',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
+                  else if (priceCOP != null) ...[
+                    if (originalPriceCOP != null && priceCOP! < originalPriceCOP!) ...[
+                      Row(
+                        children: [
+                          Text(
+                            '\$${originalPriceCOP!.toStringAsFixed(0)} COP',
+                            style: const TextStyle(
+                              color: Colors.black45,
+                              decoration: TextDecoration.lineThrough,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '\$${priceCOP!.toStringAsFixed(0)} COP',
+                            style: TextStyle(
+                              color: discountedColor,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else ...[
+                      Text(
+                        '\$${priceCOP!.toStringAsFixed(0)} COP',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
                 ],
               ),
             ),
