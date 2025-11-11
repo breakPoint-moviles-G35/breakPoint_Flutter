@@ -1,25 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+
+import '../../../data/services/nfc_service.dart';
 import '../../../domain/entities/reservation.dart';
 import '../../../domain/repositories/reservation_repository.dart';
 
 class ReservationsViewModel extends ChangeNotifier {
   final ReservationRepository repo;
+  final NfcService nfcService;
   bool _initialized = false;
 
   bool isLoading = false;
   bool isOffline = false;
   String? error;
   List<Reservation> reservations = [];
+  bool isNfcListening = false;
 
-  ReservationsViewModel(this.repo);
+  ReservationsViewModel(this.repo, this.nfcService);
 
-  // =====================================================
-  // Inicialización y escucha de conectividad
-  // =====================================================
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -29,7 +31,6 @@ class ReservationsViewModel extends ChangeNotifier {
 
     await load();
 
-    //Escucha cambios automáticos de red
     Connectivity().onConnectivityChanged.listen((result) async {
       final hasNet = !result.contains(ConnectivityResult.none);
       if (hasNet && isOffline) {
@@ -42,9 +43,6 @@ class ReservationsViewModel extends ChangeNotifier {
     });
   }
 
-  // =====================================================
-  // Carga principal (online / offline)
-  // =====================================================
   Future<void> load() async {
     try {
       isLoading = true;
@@ -64,20 +62,20 @@ class ReservationsViewModel extends ChangeNotifier {
         return;
       }
 
-      // 🔹 Con red: obtener reservas desde el backend
       final all = await repo.getUserReservations();
       final now = DateTime.now();
 
-      reservations = all.where((r) {
-        final isUpcoming = r.slotStart.isAfter(now);
-        final isOngoing =
-            r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
-        return r.status == ReservationStatus.confirmed &&
-            (isUpcoming || isOngoing);
-      }).toList()
+      reservations = all
+          .where((r) {
+            final isUpcoming = r.slotStart.isAfter(now);
+            final isOngoing =
+                r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
+            return r.status == ReservationStatus.confirmed &&
+                (isUpcoming || isOngoing);
+          })
+          .toList()
         ..sort((a, b) => a.slotStart.compareTo(b.slotStart));
 
-      // Guardar caché
       await _saveToCache(reservations);
 
       error = null;
@@ -94,9 +92,6 @@ class ReservationsViewModel extends ChangeNotifier {
     }
   }
 
-  // =====================================================
-  // Reintentar manualmente (desde OfflineBanner)
-  // =====================================================
   Future<void> retry() async {
     final status = await Connectivity().checkConnectivity();
     final hasNetwork = !status.contains(ConnectivityResult.none);
@@ -109,9 +104,6 @@ class ReservationsViewModel extends ChangeNotifier {
     }
   }
 
-  // =====================================================
-  // Métodos de caché local
-  // =====================================================
   Future<void> _saveToCache(List<Reservation> items) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -139,6 +131,69 @@ class ReservationsViewModel extends ChangeNotifier {
       return reservations.isNotEmpty;
     } catch (_) {
       reservations = [];
+      return false;
+    }
+  }
+
+  Future<String?> startNfcListening() async {
+    try {
+      isNfcListening = true;
+      notifyListeners();
+
+      final result = await nfcService.readNfcTag();
+
+      isNfcListening = false;
+      notifyListeners();
+
+      if (result != null &&
+          !result.startsWith('Error') &&
+          !result.startsWith('NFC is not available')) {
+        return result;
+      }
+
+      return null;
+    } catch (_) {
+      isNfcListening = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Reservation? getMostProximalReservation() {
+    if (reservations.isEmpty) return null;
+
+    final now = DateTime.now();
+
+    final sorted = List<Reservation>.from(reservations)
+      ..sort((a, b) {
+        final aDiff = a.slotStart.difference(now).abs();
+        final bDiff = b.slotStart.difference(now).abs();
+        return aDiff.compareTo(bDiff);
+      });
+
+    return sorted.first;
+  }
+
+  Future<bool> closeMostProximalReservation() async {
+    try {
+      final reservation = getMostProximalReservation();
+      if (reservation == null) {
+        error = 'No hay reservas para cerrar';
+        notifyListeners();
+        return false;
+      }
+
+      error = null;
+      notifyListeners();
+
+      await repo.checkoutReservation(reservation.id);
+
+      await load();
+
+      return true;
+    } catch (e) {
+      error = 'Error al cerrar la reserva: ${e.toString()}';
+      notifyListeners();
       return false;
     }
   }

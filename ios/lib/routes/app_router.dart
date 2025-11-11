@@ -1,0 +1,19 @@
+class AppRouter {
+  // 🔹 Autenticación
+  static const String login = '/login';
+
+  // 🔹 Usuario (Estudiante)
+  static const String explore = '/explore';
+  static const String filters = '/filters';
+  static const String reservations = '/reservations';
+  static const String reservation = '/reservation';
+  static const String spaceDetail = '/spaceDetail';
+  static const String profile = '/profile';
+  static const String map = '/map';
+  static const String rate = '/rate';
+
+  // 🔹 Host / Arrendador
+  static const String hostSpaces = '/host-spaces';      // Lista de espacios del host
+  static const String createSpace = '/create-space';    // Crear nuevo espacio
+  static const String hostProfile = '/host-profile';   
+}
