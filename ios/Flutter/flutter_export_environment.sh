@@ -1,13 +1,12 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=C:\Users\Josed\flutter"
-export "FLUTTER_APPLICATION_PATH=C:\Users\Josed\OneDrive - Universidad de los andes\Documentos\2025\Moviles\Flutter V0.1\breakPoint_Flutter"
+export "FLUTTER_ROOT=C:\Users\juani\ManFlutter\flutter_windows_3.35.4-stable\flutter"
+export "FLUTTER_APPLICATION_PATH=C:\Users\juani\Documents\Universidad\Semestre 7\Mobiles\breakPoint_Flutter"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_TARGET=lib\main.dart"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"
 export "FLUTTER_BUILD_NUMBER=1"
-export "FLUTTER_CLI_BUILD_MODE=debug"
 export "DART_OBFUSCATION=false"
 export "TRACK_WIDGET_CREATION=true"
 export "TREE_SHAKE_ICONS=false"
