@@ -37,7 +37,7 @@ class ExploreViewModel extends ChangeNotifier {
 
   // Instancia del repositorio de reviews
   final ReviewRepositoryImpl _reviewRepo = ReviewRepositoryImpl(
-    ReviewApi(Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'))),
+    ReviewApi(Dio(BaseOptions(baseUrl: 'http://192.168.177.247:3000'))),
   );
 
   Future<void> init() async {
@@ -49,8 +49,11 @@ class ExploreViewModel extends ChangeNotifier {
         .checkConnectivity(); // List<ConnectivityResult>
     isOffline = initial.contains(ConnectivityResult.none);
 
-    await load();
-    unawaited(loadRecommendations());
+    // Carga espacios y recomendaciones en paralelo y espera a ambas
+    await Future.wait([
+      load(),
+      loadRecommendations(),
+    ]);
 
     // escuchar cambios
   }
