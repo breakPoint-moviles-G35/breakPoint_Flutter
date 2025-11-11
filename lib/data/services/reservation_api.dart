@@ -55,6 +55,16 @@ class ReservationApi {
     }
   }
 
+  /// Saber si el usuario tiene reservas en 30 minutos
+  Future<List<Map<String, dynamic>>> hasUpcomingReservations() async {
+    try {
+      final res = await dio.get('/booking/next');
+      return (res.data as List).cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
   /// Obtener reservas cerradas del usuario actual
   Future<List<Map<String, dynamic>>> getClosedReservations() async {
     try {

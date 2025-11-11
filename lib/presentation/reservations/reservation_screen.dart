@@ -48,7 +48,10 @@ class ReservationScreen extends StatelessWidget {
           ),
           centerTitle: true,
         ),
-        body: const _ReservationContent(),
+        body: const _ReservationContent(
+          
+        ),
+        
         bottomNavigationBar: NavigationBar(
           selectedIndex: 2,
           onDestinationSelected: (i) {

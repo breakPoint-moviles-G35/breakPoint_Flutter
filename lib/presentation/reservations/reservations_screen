@@ -1,3 +1,4 @@
+import 'dart:async'; // >>> NUEVO
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:breakpoint/routes/app_router.dart';
@@ -5,6 +6,7 @@ import 'package:breakpoint/presentation/widgets/offline_banner.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
 import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
+import 'package:breakpoint/domain/repositories/reservation_repository.dart'; // >>> NUEVO
 
 class ReservationsScreen extends StatelessWidget {
   const ReservationsScreen({super.key});
@@ -36,6 +38,9 @@ class ReservationsScreen extends StatelessWidget {
                 : const SizedBox.shrink(),
           ),
 
+          // 🔹 Banner "empieza en ≤30 min"
+          const _UpcomingSoonBanner(), // >>> NUEVO
+
           Expanded(
             child: Builder(builder: (_) {
               if (vm.isLoading) {
@@ -66,8 +71,10 @@ class ReservationsScreen extends StatelessWidget {
                             '${r.formattedDate} • ${r.formattedTimeRange}',
                         rating: 0,
                         priceCOP: r.totalAmount,
-                        originalPriceCOP: r.discountApplied ? r.baseSubtotal : null,
-                        rightTag: r.discountApplied ? '25% OFF' : r.statusText,
+                        originalPriceCOP:
+                            r.discountApplied ? r.baseSubtotal : null,
+                        rightTag:
+                            r.discountApplied ? '25% OFF' : r.statusText,
                         imageAspectRatio: 16 / 9,
                         imageUrl: r.spaceImageUrl,
                         onTap: () {},
@@ -100,6 +107,119 @@ class ReservationsScreen extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
+    );
+  }
+}
+
+/// Banner que muestra si hay reservas que inician en los próximos 30 minutos.
+/// Se actualiza cada minuto. Si no hay, no se muestra.
+class _UpcomingSoonBanner extends StatefulWidget {
+  const _UpcomingSoonBanner();
+
+  @override
+  State<_UpcomingSoonBanner> createState() => _UpcomingSoonBannerState();
+}
+
+class _UpcomingSoonBannerState extends State<_UpcomingSoonBanner> {
+  late ReservationRepository _repo;
+  Future<List<Reservation>>? _future;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Repositorio debe estar disponible en el árbol con Provider.
+    _repo = context.read<ReservationRepository>();
+    _load();
+    // Refresca cada minuto
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _load());
+  }
+
+  void _load() {
+    setState(() {
+      _future = _repo.hasUpcomingReservations(); // Lista vacía si no hay
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Si quieres ocultarlo cuando no haya red, lee el VM:
+    final vm = context.watch<ReservationsViewModel>();
+    if (vm.isOffline) {
+      // Evita hacer fetch en offline si tu repo no cachea.
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<List<Reservation>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        if (snap.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final items = snap.data ?? const <Reservation>[];
+        if (items.isEmpty) return const SizedBox.shrink();
+
+        // Mostrar la más próxima
+        items.sort((a, b) => a.slotStart.compareTo(b.slotStart));
+        final next = items.first;
+
+        final now = DateTime.now();
+        final mins = next.slotStart.difference(now).inMinutes.clamp(0, 30);
+        final timeLabel = MaterialLocalizations.of(context)
+            .formatTimeOfDay(TimeOfDay.fromDateTime(next.slotStart));
+
+        // Mensaje: si hay más de una, indicamos cuántas
+        final more = (items.length > 1) ? ' (+${items.length - 1} más)' : '';
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEDE7F6), // lavanda suave
+            border: Border.all(color: Colors.deepPurpleAccent),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.schedule, color: Colors.deepPurple),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Tienes una reserva que inicia en ~$mins min (a las $timeLabel)$more.',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () {
+                  // Ya estás en "Reservations": hacemos scroll opcionalmente
+                  // o simplemente refrescamos la lista.
+                  // Aquí lo dejamos en no-op o podrías disparar vm.load();
+                },
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Ok'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.deepPurple,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

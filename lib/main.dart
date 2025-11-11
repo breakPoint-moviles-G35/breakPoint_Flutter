@@ -49,7 +49,7 @@ Future<void> main() async {
 
   // Configuración de red y repositorios
   final dioClient = DioClient(
-    'http://10.0.2.2:3000', 
+    'http://157.253.225.146:3000', 
     tokenProvider: () => authRepoRef?.token,
   );
 
