@@ -70,8 +70,9 @@ class ExploreScreen extends StatelessWidget {
         ],
         centerTitle: true,
       ),
-
-      body: SingleChildScrollView(
+      body: (vm.isLoading || vm.isLoadingRecommendations)
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Column(
           children: [
             // Sección de recomendaciones

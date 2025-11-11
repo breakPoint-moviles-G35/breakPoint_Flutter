@@ -38,6 +38,16 @@ class ReservationRepositoryImpl implements ReservationRepository {
   }
 
   @override
+  Future<List<Reservation>> hasUpcomingReservations() async {
+    try {
+      final response = await _api.hasUpcomingReservations();
+      return response.map((json) => Reservation.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Error al obtener las reservas próximas: $e');
+    }
+  }
+
+  @override
   Future<void> cancelReservation(String reservationId) async {
     try {
       await _api.cancelReservation(reservationId);
