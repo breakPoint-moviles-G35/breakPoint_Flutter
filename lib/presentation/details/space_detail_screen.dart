@@ -14,6 +14,7 @@ import '../../../data/repositories/review_repository_impl.dart';
 // import '../../../domain/repositories/review_repository.dart';
 import '../../../domain/entities/review.dart';
 import 'package:dio/dio.dart';
+import 'package:breakpoint/core/constants/api_constants.dart';
 import 'viewmodel/review_summary_viewmodel.dart';
 
 class SpaceDetailScreen extends StatefulWidget {
@@ -97,7 +98,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       body: SafeArea(
         child: ChangeNotifierProvider(
           create: (_) {
-            final dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'));
+            final dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
             final repo = ReviewRepositoryImpl(ReviewApi(dio));
             final vm = ReviewSummaryViewModel(repo);
             vm.loadReviewSummary(widget.space.id);

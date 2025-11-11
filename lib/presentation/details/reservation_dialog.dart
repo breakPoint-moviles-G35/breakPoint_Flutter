@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:breakpoint/core/constants/api_constants.dart';
 import '../../domain/entities/space.dart';
 import '../../data/repositories/reservation_repository_impl.dart';
 import '../../routes/app_router.dart';
@@ -82,7 +83,7 @@ class _ReservationDialogState extends State<ReservationDialog> {
 
     try {
       
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000')); 
+      final dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl)); 
       final api = ReservationApi(dio);
       final repo = ReservationRepositoryImpl(api);
 

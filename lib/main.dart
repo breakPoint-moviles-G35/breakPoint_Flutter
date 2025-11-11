@@ -6,11 +6,11 @@ import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/host_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
 import 'package:breakpoint/domain/repositories/space_repository.dart';
-import 'package:breakpoint/presentation/explore/explore_screen';
-import 'package:breakpoint/presentation/login/login_screen';
+import 'package:breakpoint/presentation/explore/explore_screen.dart';
+import 'package:breakpoint/presentation/login/login_screen.dart';
 import 'package:breakpoint/presentation/login/viewmodel/auth_viewmodel.dart';
 import 'package:breakpoint/presentation/map/map_screen.dart';
-import 'package:breakpoint/presentation/reservations/reservations_screen';
+import 'package:breakpoint/presentation/reservations/reservations_screen.dart';
 import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +18,8 @@ import 'package:breakpoint/routes/app_router.dart';
 
 // Core/Network
 import 'core/network/dio_client.dart';
+import 'core/constants/api_constants.dart';
+import 'data/services/nfc_service.dart';
 
 // Data layer
 import 'data/services/space_api.dart';
@@ -49,7 +51,7 @@ Future<void> main() async {
 
   // Configuración de red y repositorios
   final dioClient = DioClient(
-    'http://10.0.2.2:3000', 
+    ApiConstants.baseUrl, 
     tokenProvider: () => authRepoRef?.token,
   );
 
@@ -70,6 +72,7 @@ Future<void> main() async {
 
   final reviewApi = ReviewApi(dioClient.dio);
   final reviewRepo = ReviewRepositoryImpl(reviewApi);
+  final nfcService = NfcService();
 
   runApp(
     MultiProvider(
@@ -94,11 +97,13 @@ Future<void> main() async {
         Provider<HostRepository>(create: (_) => hostRepo),
         Provider<ReviewRepository>(create: (_) => reviewRepo),
         Provider<SpaceRepository>(create: (_) => spaceRepo),
+        Provider<NfcService>(create: (_) => nfcService),
 
         // ReservationsViewModel
         ChangeNotifierProvider(
           create: (context) => ReservationsViewModel(
             context.read<ReservationRepository>(),
+            context.read<NfcService>(),
           ),
         ),
       ],

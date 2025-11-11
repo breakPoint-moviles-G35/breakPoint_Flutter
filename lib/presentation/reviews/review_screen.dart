@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../domain/repositories/review_repository.dart';
 import '../../../data/repositories/review_repository_impl.dart';
 import '../../../data/services/review_api.dart';
 import 'viewmodel/review_viewmodel.dart';
 import 'package:dio/dio.dart';
+import 'package:breakpoint/core/constants/api_constants.dart';
 
 class ReviewScreen extends StatelessWidget {
   final String spaceId;
@@ -13,7 +13,7 @@ class ReviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000')); // cambia a tu URL
+    final dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
     final repo = ReviewRepositoryImpl(ReviewApi(dio));
 
     return ChangeNotifierProvider(

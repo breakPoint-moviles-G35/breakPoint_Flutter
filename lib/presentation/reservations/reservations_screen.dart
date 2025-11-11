@@ -4,10 +4,48 @@ import 'package:breakpoint/routes/app_router.dart';
 import 'package:breakpoint/presentation/widgets/offline_banner.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
 import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
-import 'package:breakpoint/domain/entities/reservation.dart';
 
-class ReservationsScreen extends StatelessWidget {
+class ReservationsScreen extends StatefulWidget {
   const ReservationsScreen({super.key});
+
+  @override
+  State<ReservationsScreen> createState() => _ReservationsScreenState();
+}
+
+class _ReservationsScreenState extends State<ReservationsScreen> {
+  bool _listening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _listenNfc();
+    });
+  }
+
+  Future<void> _listenNfc() async {
+    if (_listening) return;
+    _listening = true;
+    final vm = context.read<ReservationsViewModel>();
+    while (mounted && _listening) {
+      final res = await vm.startNfcListening();
+      if (!mounted || !_listening) break;
+      if (res != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('NFC detectado. Usa el botón de checkout si aplica.')),
+        );
+        await Future.delayed(const Duration(seconds: 2));
+      } else {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _listening = false;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,21 +96,16 @@ class ReservationsScreen extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, i) {
                   final r = vm.reservations[i];
-                  return Column(
-                    children: [
-                      SpaceCard(
-                        title: r.spaceTitle,
-                        subtitle:
-                            '${r.formattedDate} • ${r.formattedTimeRange}',
-                        rating: 0,
-                        priceCOP: r.totalAmount,
-                        originalPriceCOP: r.discountApplied ? r.baseSubtotal : null,
-                        rightTag: r.discountApplied ? '25% OFF' : r.statusText,
-                        imageAspectRatio: 16 / 9,
-                        imageUrl: r.spaceImageUrl,
-                        onTap: () {},
-                      ),
-                    ],
+                  return SpaceCard(
+                    title: r.spaceTitle,
+                    subtitle: '${r.formattedDate} • ${r.formattedTimeRange}',
+                    rating: 0,
+                    priceCOP: r.totalAmount,
+                    originalPriceCOP: r.discountApplied ? r.baseSubtotal : null,
+                    rightTag: r.discountApplied ? '25% OFF' : r.statusText,
+                    imageAspectRatio: 16 / 9,
+                    imageUrl: r.spaceImageUrl,
+                    onTap: () {},
                   );
                 },
               );
@@ -103,3 +136,5 @@ class ReservationsScreen extends StatelessWidget {
     );
   }
 }
+
+

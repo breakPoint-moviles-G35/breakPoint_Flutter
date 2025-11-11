@@ -5,17 +5,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../../domain/entities/reservation.dart';
 import '../../../domain/repositories/reservation_repository.dart';
+import '../../../data/services/nfc_service.dart';
 
 class ReservationsViewModel extends ChangeNotifier {
   final ReservationRepository repo;
+  final NfcService nfcService;
   bool _initialized = false;
 
   bool isLoading = false;
   bool isOffline = false;
   String? error;
   List<Reservation> reservations = [];
+  bool isNfcListening = false;
 
-  ReservationsViewModel(this.repo);
+  ReservationsViewModel(this.repo, this.nfcService);
 
   // =====================================================
   // Inicialización y escucha de conectividad
@@ -40,6 +43,25 @@ class ReservationsViewModel extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  // ================= NFC =================
+  Future<String?> startNfcListening() async {
+    try {
+      isNfcListening = true;
+      notifyListeners();
+      final result = await nfcService.readNfcTag();
+      isNfcListening = false;
+      notifyListeners();
+      if (result != null && !result.startsWith('Error')) {
+        return result;
+      }
+      return null;
+    } catch (_) {
+      isNfcListening = false;
+      notifyListeners();
+      return null;
+    }
   }
 
   // =====================================================
