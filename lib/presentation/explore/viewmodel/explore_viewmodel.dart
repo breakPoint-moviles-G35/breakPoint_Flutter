@@ -9,6 +9,7 @@ import '../../../domain/repositories/space_repository.dart';
 import '../../../domain/entities/space.dart';
 import '../../../data/services/review_api.dart';
 import '../../../data/repositories/review_repository_impl.dart';
+import '../../../core/constants/api_constants.dart';
 
 class ExploreViewModel extends ChangeNotifier {
   final SpaceRepository repo;

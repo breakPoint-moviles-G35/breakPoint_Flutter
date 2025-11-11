@@ -51,7 +51,10 @@ class _HostSpacesScreenState extends State<HostSpacesScreen> {
           ? FloatingActionButton.extended(
               backgroundColor: const Color(0xFF5C1B6C),
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Nuevo espacio', style: TextStyle(color: Colors.white)),
+              label: const Text(
+                'Nuevo espacio',
+                style: TextStyle(color: Colors.white),
+              ),
               onPressed: () {
                 Navigator.pushNamed(context, AppRouter.createSpace);
               },
@@ -70,7 +73,10 @@ class _HostSpacesScreenState extends State<HostSpacesScreen> {
                             padding: const EdgeInsets.all(16.0),
                             child: Text(
                               vm.error!,
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 16,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -79,7 +85,10 @@ class _HostSpacesScreenState extends State<HostSpacesScreen> {
                           ? const Center(
                               child: Text(
                                 'Aún no has creado ningún espacio',
-                                style: TextStyle(fontSize: 16, color: Colors.black54),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black54,
+                                ),
                               ),
                             )
                           : ListView.builder(
@@ -125,7 +134,6 @@ class _SpaceCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          // Podrías dirigir a detalles o edición
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Seleccionaste: ${space.title}')),
           );
@@ -147,7 +155,10 @@ class _SpaceCard extends StatelessWidget {
                         width: 90,
                         height: 90,
                         color: Colors.grey.shade300,
-                        child: const Icon(Icons.image_not_supported, size: 40),
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 40,
+                        ),
                       ),
               ),
               const SizedBox(width: 16),
@@ -166,7 +177,10 @@ class _SpaceCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       space.subtitle ?? 'Sin descripción',
-                      style: const TextStyle(color: Colors.black54, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 13,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),

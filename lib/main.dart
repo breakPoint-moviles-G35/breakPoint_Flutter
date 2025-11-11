@@ -1,59 +1,52 @@
 import 'package:breakpoint/data/repositories/auth_repository_impl.dart';
+import 'package:breakpoint/data/repositories/host_repository_impl.dart';
+import 'package:breakpoint/data/repositories/reservation_repository_impl.dart';
+import 'package:breakpoint/data/repositories/review_repository_impl.dart';
+import 'package:breakpoint/data/repositories/space_repository_impl.dart';
 import 'package:breakpoint/data/services/auth_api.dart';
+import 'package:breakpoint/data/services/host_api.dart';
+import 'package:breakpoint/data/services/nfc_service.dart';
+import 'package:breakpoint/data/services/reservation_api.dart';
+import 'package:breakpoint/data/services/review_api.dart';
+import 'package:breakpoint/data/services/space_api.dart';
 import 'package:breakpoint/domain/entities/space.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
-import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/host_repository.dart';
+import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
 import 'package:breakpoint/domain/repositories/space_repository.dart';
-import 'package:breakpoint/presentation/explore/explore_screen';
-import 'package:breakpoint/presentation/login/login_screen';
+import 'package:breakpoint/presentation/details/space_detail_screen.dart';
+import 'package:breakpoint/presentation/explore/explore_screen.dart';
+import 'package:breakpoint/presentation/explore/viewmodel/explore_viewmodel.dart';
+import 'package:breakpoint/presentation/filters/date_filter_screen.dart';
+import 'package:breakpoint/presentation/host/create_space_screen.dart';
+import 'package:breakpoint/presentation/host/host_spaces_screen.dart';
+import 'package:breakpoint/presentation/host/viewmodel/host_viewmodel.dart';
+import 'package:breakpoint/presentation/login/login_screen.dart';
 import 'package:breakpoint/presentation/login/viewmodel/auth_viewmodel.dart';
 import 'package:breakpoint/presentation/map/map_screen.dart';
-import 'package:breakpoint/presentation/reservations/reservations_screen';
+import 'package:breakpoint/presentation/profile/profile_screen.dart';
+import 'package:breakpoint/presentation/rate/rate_screen.dart';
+import 'package:breakpoint/presentation/reservations/reservation_screen.dart';
+import 'package:breakpoint/presentation/reservations/reservations_screen.dart';
 import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
+import 'package:breakpoint/routes/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:breakpoint/routes/app_router.dart';
 
-// Core/Network
+import 'core/constants/api_constants.dart';
 import 'core/network/dio_client.dart';
-
-// Data layer
-import 'data/services/space_api.dart';
-import 'data/repositories/space_repository_impl.dart';
-import 'data/services/reservation_api.dart';
-import 'data/repositories/reservation_repository_impl.dart';
-import 'data/services/host_api.dart';
-import 'data/repositories/host_repository_impl.dart';
-import 'data/services/review_api.dart';
-import 'data/repositories/review_repository_impl.dart';
-
-// Presentation layer
-import 'presentation/explore/viewmodel/explore_viewmodel.dart';
-import 'presentation/host/viewmodel/host_viewmodel.dart';
-import 'presentation/details/space_detail_screen.dart';
-import 'presentation/filters/date_filter_screen.dart';
-import 'presentation/reservations/reservation_screen.dart';
-import 'presentation/profile/profile_screen.dart';
-import 'presentation/rate/rate_screen.dart';
-
-// 🔹 NUEVAS PANTALLAS DE HOST
-import 'presentation/host/host_spaces_screen.dart';
-import 'presentation/host/create_space_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  AuthRepository? authRepoRef; // para exponer el token al interceptor
+  AuthRepository? authRepoRef;
 
-  // Configuración de red y repositorios
   final dioClient = DioClient(
-    'http://192.168.177.247:3000', 
+    ApiConstants.baseUrl,
     tokenProvider: () => authRepoRef?.token,
   );
 
-  // Inicialización de APIs y repositorios
   final spaceApi = SpaceApi(dioClient.dio);
   final spaceRepo = SpaceRepositoryImpl(spaceApi);
 
@@ -71,34 +64,29 @@ Future<void> main() async {
   final reviewApi = ReviewApi(dioClient.dio);
   final reviewRepo = ReviewRepositoryImpl(reviewApi);
 
+  final nfcService = NfcService();
+
   runApp(
     MultiProvider(
       providers: [
-        // ExploreViewModel
         ChangeNotifierProvider(
           create: (_) => ExploreViewModel(spaceRepo)
             ..load()
             ..loadRecommendations(),
         ),
-
-        // Auth y Host
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepo)),
-
-        // 🔹 HostViewModel ahora recibe dos repos: host y space
         ChangeNotifierProvider(
           create: (_) => HostViewModel(hostRepo, spaceRepo),
         ),
-
-        // Repositorios base
         Provider<ReservationRepository>(create: (_) => reservationRepo),
         Provider<HostRepository>(create: (_) => hostRepo),
         Provider<ReviewRepository>(create: (_) => reviewRepo),
         Provider<SpaceRepository>(create: (_) => spaceRepo),
-
-        // ReservationsViewModel
+        Provider<NfcService>(create: (_) => nfcService),
         ChangeNotifierProvider(
           create: (context) => ReservationsViewModel(
             context.read<ReservationRepository>(),
+            context.read<NfcService>(),
           ),
         ),
       ],
@@ -111,7 +99,6 @@ class MyApp extends StatelessWidget {
   final AuthRepository authRepo;
 
   const MyApp({required this.authRepo, super.key});
-
 
   Widget _buildInitialScreen() {
     return FutureBuilder<bool>(
@@ -142,7 +129,6 @@ class MyApp extends StatelessWidget {
       ),
       home: _buildInitialScreen(),
       routes: {
-        // General
         AppRouter.login: (context) => const LoginScreen(),
         AppRouter.explore: (context) => const ExploreScreen(),
         AppRouter.filters: (context) => const DateFilterScreen(),
@@ -150,31 +136,28 @@ class MyApp extends StatelessWidget {
         AppRouter.rate: (context) => const RateScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
-
-        // Espacios
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
               space: Space(
-                id: "demo-id",
-                title: "Sample Space",
-                subtitle: "A nice place to stay",
+                id: 'demo-id',
+                title: 'Sample Space',
+                subtitle: 'A nice place to stay',
                 price: 12000.0,
                 rating: 4.5,
                 capacity: 2,
-                rules: "No fumar",
-                amenities: ["WiFi", "TV"],
-                imageUrl: "",
+                rules: 'No fumar',
+                amenities: ['WiFi', 'TV'],
+                imageUrl: '',
               ),
             ),
         AppRouter.reservation: (context) => ReservationScreen(
               spaceTitle: 'Sample Space',
-              spaceAddress: '123 Business District, Suite 456, City Center',
+              spaceAddress:
+                  '123 Business District, Suite 456, City Center',
               spaceRating: 4.8,
               reviewCount: 127,
               pricePerHour: 25.0,
               spaceId: 'demo-space-id',
             ),
-
-        // Host / Arrendador
         AppRouter.hostSpaces: (context) => const HostSpacesScreen(),
         AppRouter.createSpace: (context) => const CreateSpaceScreen(),
       },

@@ -6,15 +6,14 @@ class SpaceCard extends StatelessWidget {
   final String subtitle;
   final double rating;
   final double? priceCOP;
-  final double? originalPriceCOP; // precio base antes de descuento (opcional)
-  final Color discountedColor;    // color para precio con descuento
+  final double? originalPriceCOP;
+  final Color discountedColor;
   final List<String>? metaLines;
   final String rightTag;
   final double imageAspectRatio;
 
-  /// Fuente de imagen (elige según tu caso)
-  final String? imageUrl;   // URL http/https o file:///... o ruta local
-  final String? assetImage; // asset declarado en pubspec
+  final String? imageUrl;
+  final String? assetImage;
 
   final VoidCallback? onTap;
 
@@ -102,15 +101,17 @@ class SpaceCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: metaLines!
-                          .map((t) => Text(
-                                t,
-                                style:
-                                    const TextStyle(color: Colors.black54),
-                              ))
+                          .map(
+                            (t) => Text(
+                              t,
+                              style: const TextStyle(color: Colors.black54),
+                            ),
+                          )
                           .toList(),
                     )
                   else if (priceCOP != null) ...[
-                    if (originalPriceCOP != null && priceCOP! < originalPriceCOP!) ...[
+                    if (originalPriceCOP != null &&
+                        priceCOP! < originalPriceCOP!) ...[
                       Row(
                         children: [
                           Text(

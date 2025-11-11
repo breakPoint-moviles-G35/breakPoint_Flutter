@@ -391,10 +391,11 @@ class _ReserveButton extends StatelessWidget {
       final total = reservation.totalAmount;
       final base = reservation.baseSubtotal;
       final disc = reservation.discountAmount;
+      final percent = reservation.discountPercent;
 
       final text = applied
-          ? 'Reserva realizada: \$${total.toStringAsFixed(0)} (descuento \$${disc.toStringAsFixed(0)} sobre \$${base.toStringAsFixed(0)})'
-          : 'Reserva realizada por \$${total.toStringAsFixed(0)}';
+          ? 'Reserva realizada: \$${total.toStringAsFixed(0)} (descuento ${percent.toStringAsFixed(0)}% - \$${disc.toStringAsFixed(0)} sobre \$${base.toStringAsFixed(0)})'
+          : 'Reserva realizada exitosamente por \$${total.toStringAsFixed(0)}';
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(text),
