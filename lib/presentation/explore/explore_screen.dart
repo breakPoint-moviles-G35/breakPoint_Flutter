@@ -70,10 +70,24 @@ class ExploreScreen extends StatelessWidget {
         ],
         centerTitle: true,
       ),
-      body: (vm.isLoading || vm.isLoadingRecommendations)
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        child: Column(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await vm.load();
+          await vm.loadRecommendations();
+        },
+        child: (vm.isLoading && vm.spaces.isEmpty && vm.recommendations.isEmpty)
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                    height: 320,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              )
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
           children: [
             // Sección de recomendaciones
             if (vm.recommendations.isNotEmpty) ...[
@@ -259,7 +273,7 @@ class ExploreScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      )),
 
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,

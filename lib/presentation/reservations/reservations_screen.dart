@@ -167,49 +167,77 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
           ),
 
           Expanded(
-            child: Builder(builder: (_) {
-              if (vm.isLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (vm.error != null && vm.reservations.isEmpty) {
-                return Center(child: Text(vm.error!));
-              }
-
-              if (vm.reservations.isEmpty) {
-                return const Center(
-                  child: Text('No tienes reservas activas.'),
-                );
-              }
-
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                itemCount: vm.reservations.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (context, i) {
-                  final r = vm.reservations[i];
-                  return Column(
-                    children: [
-                      SpaceCard(
-                        title: r.spaceTitle,
-                        subtitle:
-                            '${r.formattedDate} • ${r.formattedTimeRange}',
-                        rating: 0,
-                        priceCOP: r.totalAmount,
-                        originalPriceCOP:
-                            r.discountApplied ? r.baseSubtotal : null,
-                        rightTag: r.discountApplied
-                            ? '${r.discountPercent.toStringAsFixed(0)}% OFF'
-                            : r.statusText,
-                        imageAspectRatio: 16 / 9,
-                        imageUrl: r.spaceImageUrl,
-                        onTap: () {},
+            child: RefreshIndicator(
+              onRefresh: () => vm.load(),
+              child: Builder(builder: (_) {
+                if (vm.isLoading) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(
+                        height: 320,
+                        child: Center(child: CircularProgressIndicator()),
                       ),
                     ],
                   );
-                },
-              );
-            }),
+                }
+
+                if (vm.error != null && vm.reservations.isEmpty) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: 320,
+                        child: Center(child: Text(vm.error!)),
+                      ),
+                    ],
+                  );
+                }
+
+                if (vm.reservations.isEmpty) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(
+                        height: 320,
+                        child: Center(
+                          child: Text('No tienes reservas activas.'),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  itemCount: vm.reservations.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, i) {
+                    final r = vm.reservations[i];
+                    return Column(
+                      children: [
+                        SpaceCard(
+                          title: r.spaceTitle,
+                          subtitle:
+                              '${r.formattedDate} • ${r.formattedTimeRange}',
+                          rating: 0,
+                          priceCOP: r.totalAmount,
+                          originalPriceCOP:
+                              r.discountApplied ? r.baseSubtotal : null,
+                          rightTag: r.discountApplied
+                              ? '${r.discountPercent.toStringAsFixed(0)}% OFF'
+                              : r.statusText,
+                          imageAspectRatio: 16 / 9,
+                          imageUrl: r.spaceImageUrl,
+                          onTap: () {},
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }),
+            ),
           ),
         ],
       ),
