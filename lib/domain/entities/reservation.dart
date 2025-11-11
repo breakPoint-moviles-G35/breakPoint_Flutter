@@ -12,6 +12,10 @@ class Reservation {
   final String spaceId;
   final String spaceTitle;
   final String? spaceImageUrl;
+  final double baseSubtotal;
+  final bool discountApplied;
+  final double discountPercent;
+  final double discountAmount;
   final double totalAmount;
   final String currency;
   final DateTime slotStart;
@@ -25,6 +29,10 @@ class Reservation {
     required this.spaceId,
     required this.spaceTitle,
     this.spaceImageUrl,
+    required this.baseSubtotal,
+    required this.discountApplied,
+    required this.discountPercent,
+    required this.discountAmount,
     required this.totalAmount,
     required this.currency,
     required this.slotStart,
@@ -36,7 +44,31 @@ class Reservation {
     // 🔹 Adapta nombres snake_case / camelCase
     final slotStartValue = json['slot_start'] ?? json['slotStart'];
     final slotEndValue = json['slot_end'] ?? json['slotEnd'];
-    final totalAmountValue = json['total_amount'] ?? json['totalAmount'];
+    final totalAmountValue =
+        json['total'] ?? json['total_amount'] ?? json['totalAmount'];
+    final baseSubtotalValue =
+        json['base_subtotal'] ?? json['baseSubtotal'] ?? json['subtotal'];
+    final discountAppliedValue =
+        json['discount_applied'] ?? json['discountApplied'];
+    final discountPercentValue =
+        json['discount_percent'] ?? json['discountPercent'];
+    final discountAmountValue =
+        json['discount_amount'] ?? json['discountAmount'];
+
+    double _toDouble(dynamic value, [double defaultValue = 0]) {
+      if (value is num) return value.toDouble();
+      return double.tryParse(value?.toString() ?? '') ?? defaultValue;
+    }
+
+    bool _toBool(dynamic value) {
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      if (value is String) {
+        final v = value.toLowerCase();
+        return v == 'true' || v == '1' || v == 'yes';
+      }
+      return false;
+    }
 
     return Reservation(
       id: json['id']?.toString() ?? '',
@@ -45,12 +77,16 @@ class Reservation {
       spaceId: json['space']?['id']?.toString() ?? '',
       spaceTitle: json['space']?['title'] ?? '',
       spaceImageUrl: json['space']?['imageUrl'] ?? json['space']?['image_url'],
-      totalAmount: (totalAmountValue is num)
-          ? totalAmountValue.toDouble()
-          : double.tryParse(totalAmountValue?.toString() ?? '0') ?? 0.0,
+      baseSubtotal: _toDouble(baseSubtotalValue, 0),
+      discountApplied: _toBool(discountAppliedValue),
+      discountPercent: _toDouble(discountPercentValue, 0),
+      discountAmount: _toDouble(discountAmountValue, 0),
+      totalAmount: _toDouble(totalAmountValue, 0),
       currency: json['currency'] ?? 'USD',
-      slotStart: (DateTime.tryParse(slotStartValue ?? '') ?? DateTime.now()).toLocal(),
-      slotEnd: (DateTime.tryParse(slotEndValue ?? '') ?? DateTime.now()).toLocal(),
+      slotStart:
+          (DateTime.tryParse(slotStartValue ?? '') ?? DateTime.now()).toLocal(),
+      slotEnd:
+          (DateTime.tryParse(slotEndValue ?? '') ?? DateTime.now()).toLocal(),
       status: _parseStatus(json['status']),
     );
   }
@@ -63,6 +99,10 @@ class Reservation {
       'spaceId': spaceId,
       'spaceTitle': spaceTitle,
       'spaceImageUrl': spaceImageUrl,
+      'baseSubtotal': baseSubtotal,
+      'discountApplied': discountApplied,
+      'discountPercent': discountPercent,
+      'discountAmount': discountAmount,
       'totalAmount': totalAmount,
       'currency': currency,
       'slotStart': slotStart.toIso8601String(),
@@ -88,7 +128,8 @@ class Reservation {
       '${slotStart.day}/${slotStart.month}/${slotStart.year}';
 
   String get formattedTimeRange {
-    final start = '${slotStart.hour}:${slotStart.minute.toString().padLeft(2, '0')}';
+    final start =
+        '${slotStart.hour}:${slotStart.minute.toString().padLeft(2, '0')}';
     final end = '${slotEnd.hour}:${slotEnd.minute.toString().padLeft(2, '0')}';
     return '$start - $end';
   }

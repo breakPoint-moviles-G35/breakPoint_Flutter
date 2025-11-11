@@ -384,12 +384,20 @@ class _ReserveButton extends StatelessWidget {
     final reservation = await vm.processReservation();
 
     if (reservation != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Reserva realizada exitosamente por \$${vm.totalPrice.toStringAsFixed(0)}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      final applied = reservation.discountApplied;
+      final total = reservation.totalAmount;
+      final base = reservation.baseSubtotal;
+      final disc = reservation.discountAmount;
+      final percent = reservation.discountPercent;
+
+      final text = applied
+          ? 'Reserva realizada: \$${total.toStringAsFixed(0)} (descuento ${percent.toStringAsFixed(0)}% - \$${disc.toStringAsFixed(0)} sobre \$${base.toStringAsFixed(0)})'
+          : 'Reserva realizada exitosamente por \$${total.toStringAsFixed(0)}';
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(text),
+        backgroundColor: Colors.green,
+      ));
       // Ir al listado para ver la reserva
       Navigator.pushReplacementNamed(context, AppRouter.reservations);
     } else {

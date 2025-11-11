@@ -193,10 +193,14 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                       SpaceCard(
                         title: r.spaceTitle,
                         subtitle:
-                        '${r.formattedDate} • ${r.formattedTimeRange}',
+                            '${r.formattedDate} • ${r.formattedTimeRange}',
                         rating: 0,
                         priceCOP: r.totalAmount,
-                        rightTag: r.statusText,
+                        originalPriceCOP:
+                            r.discountApplied ? r.baseSubtotal : null,
+                        rightTag: r.discountApplied
+                            ? '${r.discountPercent.toStringAsFixed(0)}% OFF'
+                            : r.statusText,
                         imageAspectRatio: 16 / 9,
                         imageUrl: r.spaceImageUrl,
                         onTap: () {},

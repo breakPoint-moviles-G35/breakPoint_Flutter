@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../domain/entities/space.dart';
-import '../host/viewmodel/host_viewmodel.dart';
-import '../../../routes/app_router.dart';
+import '../../domain/entities/space.dart';
+import 'viewmodel/host_viewmodel.dart';
+import '../../routes/app_router.dart';
+import './profile_host_screen.dart';
 
 class HostSpacesScreen extends StatefulWidget {
   const HostSpacesScreen({super.key});
@@ -12,6 +13,8 @@ class HostSpacesScreen extends StatefulWidget {
 }
 
 class _HostSpacesScreenState extends State<HostSpacesScreen> {
+  int _index = 0; // 0: Espacios, 1: Perfil
+
   @override
   void initState() {
     super.initState();
@@ -30,58 +33,89 @@ class _HostSpacesScreenState extends State<HostSpacesScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F2FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 2,
-        title: const Text(
-          'Mis Espacios',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF5C1B6C),
+      appBar: _index == 0
+          ? AppBar(
+              backgroundColor: Colors.white,
+              elevation: 2,
+              title: const Text(
+                'Mis Espacios',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF5C1B6C),
+                ),
+              ),
+              centerTitle: true,
+            )
+          : null,
+      floatingActionButton: _index == 0
+          ? FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF5C1B6C),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                'Nuevo espacio',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () {
+                Navigator.pushNamed(context, AppRouter.createSpace);
+              },
+            )
+          : null,
+      body: _index == 0
+          ? RefreshIndicator(
+              onRefresh: () async {
+                await vm.loadMySpaces();
+              },
+              child: vm.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : vm.error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              vm.error!,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 16,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : vm.mySpaces.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'Aún no has creado ningún espacio',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: vm.mySpaces.length,
+                              itemBuilder: (context, index) {
+                                final space = vm.mySpaces[index];
+                                return _SpaceCard(space: space);
+                              },
+                            ),
+            )
+          : const ProfileHostScreen(),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) => setState(() => _index = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.meeting_room_outlined),
+            selectedIcon: Icon(Icons.meeting_room),
+            label: 'Espacios',
           ),
-        ),
-        centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF5C1B6C),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Nuevo espacio', style: TextStyle(color: Colors.white)),
-        onPressed: () {
-          Navigator.pushNamed(context, AppRouter.createSpace);
-        },
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await vm.loadMySpaces();
-        },
-        child: vm.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : vm.error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        vm.error!,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : vm.mySpaces.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'Aún no has creado ningún espacio',
-                          style: TextStyle(fontSize: 16, color: Colors.black54),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: vm.mySpaces.length,
-                        itemBuilder: (context, index) {
-                          final space = vm.mySpaces[index];
-                          return _SpaceCard(space: space);
-                        },
-                      ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ],
       ),
     );
   }
@@ -100,7 +134,6 @@ class _SpaceCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          // Podrías dirigir a detalles o edición
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Seleccionaste: ${space.title}')),
           );
@@ -122,7 +155,10 @@ class _SpaceCard extends StatelessWidget {
                         width: 90,
                         height: 90,
                         color: Colors.grey.shade300,
-                        child: const Icon(Icons.image_not_supported, size: 40),
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 40,
+                        ),
                       ),
               ),
               const SizedBox(width: 16),
@@ -141,7 +177,10 @@ class _SpaceCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       space.subtitle ?? 'Sin descripción',
-                      style: const TextStyle(color: Colors.black54, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 13,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),

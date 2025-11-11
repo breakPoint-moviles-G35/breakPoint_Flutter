@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+
+import '../../../data/services/nfc_service.dart';
 import '../../../domain/entities/reservation.dart';
 import '../../../domain/repositories/reservation_repository.dart';
-import '../../../data/services/nfc_service.dart';
 
 class ReservationsViewModel extends ChangeNotifier {
   final ReservationRepository repo;
@@ -20,9 +22,6 @@ class ReservationsViewModel extends ChangeNotifier {
 
   ReservationsViewModel(this.repo, this.nfcService);
 
-  // =====================================================
-  // Inicialización y escucha de conectividad
-  // =====================================================
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -32,7 +31,6 @@ class ReservationsViewModel extends ChangeNotifier {
 
     await load();
 
-    //Escucha cambios automáticos de red
     Connectivity().onConnectivityChanged.listen((result) async {
       final hasNet = !result.contains(ConnectivityResult.none);
       if (hasNet && isOffline) {
@@ -45,9 +43,6 @@ class ReservationsViewModel extends ChangeNotifier {
     });
   }
 
-  // =====================================================
-  // Carga principal (online / offline)
-  // =====================================================
   Future<void> load() async {
     try {
       isLoading = true;
@@ -67,20 +62,20 @@ class ReservationsViewModel extends ChangeNotifier {
         return;
       }
 
-      // 🔹 Con red: obtener reservas desde el backend
       final all = await repo.getUserReservations();
       final now = DateTime.now();
 
-      reservations = all.where((r) {
-        final isUpcoming = r.slotStart.isAfter(now);
-        final isOngoing =
-            r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
-        return r.status == ReservationStatus.confirmed &&
-            (isUpcoming || isOngoing);
-      }).toList()
+      reservations = all
+          .where((r) {
+            final isUpcoming = r.slotStart.isAfter(now);
+            final isOngoing =
+                r.slotStart.isBefore(now) && r.slotEnd.isAfter(now);
+            return r.status == ReservationStatus.confirmed &&
+                (isUpcoming || isOngoing);
+          })
+          .toList()
         ..sort((a, b) => a.slotStart.compareTo(b.slotStart));
 
-      // Guardar caché
       await _saveToCache(reservations);
 
       error = null;
@@ -97,9 +92,6 @@ class ReservationsViewModel extends ChangeNotifier {
     }
   }
 
-  // =====================================================
-  // Reintentar manualmente (desde OfflineBanner)
-  // =====================================================
   Future<void> retry() async {
     final status = await Connectivity().checkConnectivity();
     final hasNetwork = !status.contains(ConnectivityResult.none);
@@ -112,9 +104,6 @@ class ReservationsViewModel extends ChangeNotifier {
     }
   }
 
-  // =====================================================
-  // Métodos de caché local
-  // =====================================================
   Future<void> _saveToCache(List<Reservation> items) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -146,12 +135,6 @@ class ReservationsViewModel extends ChangeNotifier {
     }
   }
 
-  // =====================================================
-  // NFC Methods
-  // =====================================================
-
-  /// Start listening for NFC tags
-  /// Returns the NFC data if a tag was detected, null if timeout or no tag
   Future<String?> startNfcListening() async {
     try {
       isNfcListening = true;
@@ -162,8 +145,6 @@ class ReservationsViewModel extends ChangeNotifier {
       isNfcListening = false;
       notifyListeners();
 
-      // Only return non-null if we successfully read something
-      // Don't return error messages as successful reads
       if (result != null &&
           !result.startsWith('Error') &&
           !result.startsWith('NFC is not available')) {
@@ -171,21 +152,18 @@ class ReservationsViewModel extends ChangeNotifier {
       }
 
       return null;
-    } catch (e) {
+    } catch (_) {
       isNfcListening = false;
       notifyListeners();
-      // Return null on errors instead of error message
       return null;
     }
   }
 
-  /// Get the most proximal (nearest in time) reservation
   Reservation? getMostProximalReservation() {
     if (reservations.isEmpty) return null;
 
     final now = DateTime.now();
 
-    // Sort by proximity to current time
     final sorted = List<Reservation>.from(reservations)
       ..sort((a, b) {
         final aDiff = a.slotStart.difference(now).abs();
@@ -196,7 +174,6 @@ class ReservationsViewModel extends ChangeNotifier {
     return sorted.first;
   }
 
-  /// Close (checkout) the most proximal reservation
   Future<bool> closeMostProximalReservation() async {
     try {
       final reservation = getMostProximalReservation();
@@ -206,18 +183,15 @@ class ReservationsViewModel extends ChangeNotifier {
         return false;
       }
 
-      // Clear any previous errors
       error = null;
       notifyListeners();
 
       await repo.checkoutReservation(reservation.id);
 
-      // Reload reservations after closing
       await load();
 
       return true;
     } catch (e) {
-      // Capture and store the error message
       error = 'Error al cerrar la reserva: ${e.toString()}';
       notifyListeners();
       return false;
