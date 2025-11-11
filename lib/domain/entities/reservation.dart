@@ -12,6 +12,10 @@ class Reservation {
   final String spaceId;
   final String spaceTitle;
   final String? spaceImageUrl;
+  final double baseSubtotal;
+  final bool discountApplied;
+  final double discountPercent;
+  final double discountAmount;
   final double totalAmount;
   final String currency;
   final DateTime slotStart;
@@ -25,6 +29,10 @@ class Reservation {
     required this.spaceId,
     required this.spaceTitle,
     this.spaceImageUrl,
+    required this.baseSubtotal,
+    required this.discountApplied,
+    required this.discountPercent,
+    required this.discountAmount,
     required this.totalAmount,
     required this.currency,
     required this.slotStart,
@@ -36,7 +44,8 @@ class Reservation {
     // 🔹 Adapta nombres snake_case / camelCase
     final slotStartValue = json['slot_start'] ?? json['slotStart'];
     final slotEndValue = json['slot_end'] ?? json['slotEnd'];
-    final totalAmountValue = json['total_amount'] ?? json['totalAmount'];
+    final totalAmountValue = json['total'] ?? json['total_amount'] ?? json['totalAmount'];
+    final baseSubtotalValue = json['base_subtotal'] ?? json['baseSubtotal'] ?? json['subtotal'];
 
     return Reservation(
       id: json['id']?.toString() ?? '',
@@ -45,6 +54,20 @@ class Reservation {
       spaceId: json['space']?['id']?.toString() ?? '',
       spaceTitle: json['space']?['title'] ?? '',
       spaceImageUrl: json['space']?['imageUrl'] ?? json['space']?['image_url'],
+      baseSubtotal: (baseSubtotalValue is num)
+          ? baseSubtotalValue.toDouble()
+          : double.tryParse(baseSubtotalValue?.toString() ?? '0') ?? 0.0,
+      discountApplied: (json['discount_applied'] ?? json['discountApplied'] ?? false) == true,
+      discountPercent: (() {
+        final v = json['discount_percent'] ?? json['discountPercent'];
+        if (v is num) return v.toDouble();
+        return double.tryParse(v?.toString() ?? '0') ?? 0.0;
+      })(),
+      discountAmount: (() {
+        final v = json['discount_amount'] ?? json['discountAmount'];
+        if (v is num) return v.toDouble();
+        return double.tryParse(v?.toString() ?? '0') ?? 0.0;
+      })(),
       totalAmount: (totalAmountValue is num)
           ? totalAmountValue.toDouble()
           : double.tryParse(totalAmountValue?.toString() ?? '0') ?? 0.0,
@@ -63,6 +86,10 @@ class Reservation {
       'spaceId': spaceId,
       'spaceTitle': spaceTitle,
       'spaceImageUrl': spaceImageUrl,
+      'baseSubtotal': baseSubtotal,
+      'discountApplied': discountApplied,
+      'discountPercent': discountPercent,
+      'discountAmount': discountAmount,
       'totalAmount': totalAmount,
       'currency': currency,
       'slotStart': slotStart.toIso8601String(),
