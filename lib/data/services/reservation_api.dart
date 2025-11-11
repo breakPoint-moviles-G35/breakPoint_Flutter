@@ -59,7 +59,14 @@ class ReservationApi {
   Future<List<Map<String, dynamic>>> hasUpcomingReservations() async {
     try {
       final res = await dio.get('/booking/next');
-      return (res.data as List).cast<Map<String, dynamic>>();
+      final data = res.data;
+      if (data is List) {
+        return data.cast<Map<String, dynamic>>();
+      }
+      if (data is Map) {
+        return [Map<String, dynamic>.from(data)];
+      }
+      return const <Map<String, dynamic>>[];
     } on DioException catch (e) {
       throw Exception(_extractMessage(e));
     }
