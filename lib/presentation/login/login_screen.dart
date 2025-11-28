@@ -333,7 +333,7 @@ class _RegisterFormState extends State<_RegisterForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Nombre', style: TextStyle(fontSize: 13)),
+          const Text('Nombre (Obligatorio)', style: TextStyle(fontSize: 13)),
           const SizedBox(height: 6),
           TextFormField(
             controller: widget.nameCtrl,

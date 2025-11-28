@@ -45,6 +45,15 @@ class ExploreViewModel extends ChangeNotifier {
     if (_initialized) return;
     _initialized = true;
 
+    // Carga preferencia de orden si existe
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedSort = prefs.getBool('spaces_sort_asc');
+      if (savedSort != null) {
+        sortAsc = savedSort;
+      }
+    } catch (_) {}
+
     // estado inicial
     final initial = await Connectivity()
         .checkConnectivity(); // List<ConnectivityResult>
@@ -197,10 +206,17 @@ class ExploreViewModel extends ChangeNotifier {
   // -------------------------------------------------------
   // Otros métodos de control
   // -------------------------------------------------------
-  void toggleSort() {
+  Future<void> toggleSort() async {
     sortAsc = !sortAsc;
     _applySort();
     notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('spaces_sort_asc', sortAsc);
+    } catch (_) {}
+    try {
+      await _saveSpacesToCache(spaces);
+    } catch (_) {}
   }
 
   // Convierte un DateTimeRange a dos strings ISO y recarga

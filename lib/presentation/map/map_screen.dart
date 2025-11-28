@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 // NUEVO: ubicación/permisos
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
+import 'package:flutter/material.dart';
 
 import '../explore/viewmodel/explore_viewmodel.dart';
 import '../details/space_detail_screen.dart';
 import '../../domain/entities/space.dart';
+import '../../core/services/location_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -40,8 +42,14 @@ class _MapScreenState extends State<MapScreen> {
     _prefetchMyLocation(); // opcional: intenta precargar al abrir
     
     // Cargar espacios para mostrar en el mapa
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       context.read<ExploreViewModel>().load();
+      // Cargar última ubicación guardada
+      final lastLocation = await LocationService.getLastLocation();
+      if (lastLocation != null && mounted) {
+        _myLatLng = lastLocation;
+        _animateTo(_myLatLng!, 16);
+      }
     });
   }
 
@@ -144,14 +152,25 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // FABs: Mi ubicación + Campus + Lista
+          // FABs: Mi ubicación + Guardar ubicación + Campus + Lista
           Positioned(
             bottom: 16,
             right: 16,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // NUEVO: Ir a mi ubicación
+                // Guardar ubicación actual
+                FloatingActionButton.small(
+                  heroTag: 'fab-save-loc',
+                  tooltip: 'Guardar ubicación',
+                  onPressed: _myLatLng != null 
+                      ? () => _saveCurrentLocation(context) 
+                      : null,
+                  child: const Icon(Icons.bookmark_add),
+                ),
+                const SizedBox(height: 8),
+                
+                // Ir a mi ubicación
                 FloatingActionButton.small(
                   heroTag: 'fab-my-loc',
                   tooltip: 'Ir a mi ubicación',
@@ -163,16 +182,25 @@ class _MapScreenState extends State<MapScreen> {
                         )
                       : const Icon(Icons.my_location),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
-                // Botón existente: centrar en campus
+                // Centrar en campus
                 FloatingActionButton.small(
                   heroTag: 'fab-campus',
                   tooltip: 'Centrar en campus',
                   onPressed: () => _animateTo(_campusCenter, _defaultZoom),
                   child: const Icon(Icons.center_focus_strong),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
+
+                // Ver ubicaciones guardadas
+                FloatingActionButton.small(
+                  heroTag: 'fab-saved-locations',
+                  tooltip: 'Ubicaciones guardadas',
+                  onPressed: _showSavedLocations,
+                  child: const Icon(Icons.bookmark),
+                ),
+                const SizedBox(height: 8),
 
                 // Volver a la lista (Explore)
                 FloatingActionButton.small(
@@ -299,6 +327,10 @@ class _MapScreenState extends State<MapScreen> {
 
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       _myLatLng = LatLng(pos.latitude, pos.longitude);
+      
+      // Guardar la ubicación actual
+      await LocationService.saveLastLocation(_myLatLng!);
+      
       await _animateTo(_myLatLng!, 16);
       await _fetchNearestFor(_myLatLng!);
     } catch (e) {
@@ -412,5 +444,151 @@ class _MapScreenState extends State<MapScreen> {
         ),
       ),
     );
+  }
+
+  // Guardar la ubicación actual
+  Future<void> _saveCurrentLocation(BuildContext context) async {
+    if (_myLatLng == null) return;
+
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Guardar ubicación'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: nameController,
+            decoration: const InputDecoration(
+              labelText: 'Nombre de la ubicación',
+              hintText: 'Ej: Casa, Trabajo, Universidad',
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa un nombre';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(context, nameController.text);
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && _myLatLng != null) {
+      await LocationService.saveLocation(_myLatLng!, name: result);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ubicación guardada correctamente')),
+        );
+      }
+    }
+  }
+
+  // Mostrar diálogo con ubicaciones guardadas
+  Future<void> _showSavedLocations() async {
+    final savedLocations = await LocationService.getSavedLocations();
+    
+    if (!mounted) return;
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ubicaciones guardadas'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: savedLocations.isEmpty
+              ? const Text('No hay ubicaciones guardadas')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: savedLocations.length,
+                  itemBuilder: (context, index) {
+                    final loc = savedLocations[index];
+                    final latLng = LatLng(
+                      (loc['lat'] as num).toDouble(),
+                      (loc['lng'] as num).toDouble(),
+                    );
+                    
+                    return ListTile(
+                      leading: const Icon(Icons.location_on),
+                      title: Text(loc['name'] ?? 'Ubicación ${index + 1}'),
+                      subtitle: Text('${latLng.latitude.toStringAsFixed(4)}, ${latLng.longitude.toStringAsFixed(4)}'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _animateTo(latLng, 16);
+                      },
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _deleteLocation(context, index),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Eliminar una ubicación guardada
+  Future<void> _deleteLocation(BuildContext context, int index) async {
+    final savedLocations = await LocationService.getSavedLocations();
+    if (index < 0 || index >= savedLocations.length) return;
+    
+    final loc = savedLocations[index];
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar ubicación'),
+        content: Text('¿Estás seguro de que quieres eliminar "${loc['name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (shouldDelete) {
+      savedLocations.removeAt(index);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        'saved_locations',
+        savedLocations.map(LocationService._encodeLocation).toList(),
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ubicación eliminada')),
+        );
+        // Actualizar el diálogo
+        _showSavedLocations();
+      }
+    }
   }
 }
