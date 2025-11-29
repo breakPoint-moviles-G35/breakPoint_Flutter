@@ -1,17 +1,149 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
-
-// NUEVO: ubicación/permisos
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../explore/viewmodel/explore_viewmodel.dart';
 import '../details/space_detail_screen.dart';
 import '../../domain/entities/space.dart';
 import '../../core/services/location_service.dart';
+
+// Modelo para pasar datos al Isolate
+class MarkerData {
+  final String id;
+  final String title;
+  final String? subtitle;
+  final double price;
+  final dynamic geo;
+  final String imageUrl;
+  final double rating;
+
+  MarkerData({
+    required this.id,
+    required this.title,
+    this.subtitle,
+    required this.price,
+    required this.geo,
+    required this.imageUrl,
+    this.rating = 0.0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'subtitle': subtitle,
+        'price': price,
+        'geo': geo,
+        'imageUrl': imageUrl,
+        'rating': rating,
+      };
+
+  factory MarkerData.fromJson(Map<String, dynamic> json) => MarkerData(
+        id: json['id'],
+        title: json['title'],
+        subtitle: json['subtitle'],
+        price: json['price'],
+        geo: json['geo'],
+        imageUrl: json['imageUrl'],
+        rating: json['rating']?.toDouble() ?? 0.0,
+      );
+}
+
+// Función que se ejecutará en un Isolate separado
+Future<Set<Marker>> _createMarkersInIsolate(List<MarkerData> markersData) async {
+  final port = ReceivePort();
+  await Isolate.spawn(
+    _isolateEntry,
+    {
+      'sendPort': port.sendPort,
+      'markersData': markersData.map((m) => m.toJson()).toList(),
+    },
+  );
+
+  return await port.first.then((result) {
+    final markers = <Marker>{};
+    for (final marker in (result as List)) {
+      markers.add(Marker(
+        markerId: MarkerId(marker['id']),
+        position: LatLng(
+          (marker['position'] as Map)['latitude'],
+          (marker['position'] as Map)['longitude'],
+        ),
+        infoWindow: InfoWindow(
+          title: marker['title'],
+          snippet: marker['snippet'],
+          onTap: () {
+            // No se puede usar BuildContext aquí, manejaremos el tap desde el widget principal
+          },
+        ),
+      ));
+    }
+    return markers;
+  });
+}
+
+// Punto de entrada del Isolate
+void _isolateEntry(Map<String, dynamic> message) {
+  final sendPort = message['sendPort'] as SendPort;
+  final markersData = (message['markersData'] as List)
+      .map((m) => MarkerData.fromJson(Map<String, dynamic>.from(m)))
+      .toList();
+
+  final markers = <Map<String, dynamic>>[];
+  
+  for (final data in markersData) {
+    final latLng = _parseLatLngInIsolate(data.geo);
+    if (latLng != null) {
+      markers.add({
+        'id': data.id,
+        'title': data.title,
+        'snippet': data.subtitle?.isNotEmpty == true ? data.subtitle : '\$${data.price.toStringAsFixed(0)} COP',
+        'position': {'latitude': latLng.latitude, 'longitude': latLng.longitude},
+      });
+    }
+  }
+
+  Isolate.exit(sendPort, markers);
+}
+
+// Función auxiliar para parsear coordenadas en el Isolate
+LatLng? _parseLatLngInIsolate(dynamic geo) {
+  try {
+    if (geo == null) return null;
+    
+    if (geo is String) {
+      final parts = geo.split(',');
+      if (parts.length == 2) {
+        final lat = double.tryParse(parts[0].trim());
+        final lng = double.tryParse(parts[1].trim());
+        if (lat != null && lng != null) return LatLng(lat, lng);
+      }
+    } else if (geo is Map) {
+      final lat = geo['lat'] ?? geo['latitude'];
+      final lng = geo['lng'] ?? geo['lon'] ?? geo['longitude'];
+      if (lat != null && lng != null) {
+        return LatLng(
+          (lat is num) ? lat.toDouble() : double.parse(lat.toString()),
+          (lng is num) ? lng.toDouble() : double.parse(lng.toString()),
+        );
+      }
+    } else if (geo is List && geo.length >= 2) {
+      return LatLng(
+        (geo[0] is num) ? geo[0].toDouble() : double.parse(geo[0].toString()),
+        (geo[1] is num) ? geo[1].toDouble() : double.parse(geo[1].toString()),
+      );
+    }
+  } catch (e) {
+    debugPrint('Error parsing geo in isolate: $e');
+  }
+  return null;
+}
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -23,6 +155,9 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapCtrl;
   MapType _mapType = MapType.normal;
+  Set<Marker> _markers = {};
+  bool _isLoadingMarkers = false;
+  String? _markersError;
 
   // Centro por defecto (campus)
   static const _campusCenter = LatLng(4.60971, -74.08175);
@@ -39,11 +174,16 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _prefetchMyLocation(); // opcional: intenta precargar al abrir
+    _prefetchMyLocation();
     
     // Cargar espacios para mostrar en el mapa
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      context.read<ExploreViewModel>().load();
+      final vm = context.read<ExploreViewModel>();
+      await vm.load();
+      
+      // Cargar marcadores en segundo plano
+      _loadMarkers(vm.spaces);
+      
       // Cargar última ubicación guardada
       final lastLocation = await LocationService.getLastLocation();
       if (lastLocation != null && mounted) {
@@ -51,6 +191,47 @@ class _MapScreenState extends State<MapScreen> {
         _animateTo(_myLatLng!, 16);
       }
     });
+  }
+  
+  // Cargar marcadores en un Isolate separado
+  Future<void> _loadMarkers(List<Space> spaces) async {
+    if (_isLoadingMarkers) return;
+    
+    setState(() {
+      _isLoadingMarkers = true;
+      _markersError = null;
+    });
+    
+    try {
+      // Convertir espacios a un formato serializable para el Isolate
+      final markersData = spaces.map((space) => MarkerData(
+        id: space.id,
+        title: space.title,
+        subtitle: space.subtitle,
+        price: space.price,
+        geo: space.geo,
+        imageUrl: space.imageUrl,
+        rating: space.rating,
+      )).toList();
+      
+      // Generar marcadores en un Isolate separado
+      final markers = await _createMarkersInIsolate(markersData);
+      
+      if (mounted) {
+        setState(() {
+          _markers = markers;
+          _isLoadingMarkers = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading markers: $e');
+      if (mounted) {
+        setState(() {
+          _markersError = 'Error al cargar los marcadores';
+          _isLoadingMarkers = false;
+        });
+      }
+    }
   }
 
   Future<void> _prefetchMyLocation() async {
@@ -69,9 +250,18 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   @override
+  void didUpdateWidget(MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Actualizar marcadores si la lista de espacios cambia
+    final vm = context.read<ExploreViewModel>();
+    if (vm.spaces.isNotEmpty && _markers.length != vm.spaces.length) {
+      _loadMarkers(vm.spaces);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final vm = context.watch<ExploreViewModel>();
-    final markers = _buildMarkers(vm); // ← mantiene pines del backend
 
     return Scaffold(
       appBar: AppBar(
@@ -101,7 +291,7 @@ class _MapScreenState extends State<MapScreen> {
             compassEnabled: true,
             zoomControlsEnabled: false,
             onMapCreated: (c) => _mapCtrl = c,
-            markers: markers,
+            markers: _markers,
           ),
 
           // Bottom nearest card
@@ -115,8 +305,8 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // Indicador de carga de espacios
-          if (vm.isLoading)
+          // Indicador de carga de espacios y marcadores
+          if (vm.isLoading || _isLoadingMarkers)
             Positioned(
               top: 12,
               left: 12,
@@ -130,9 +320,44 @@ class _MapScreenState extends State<MapScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                     const SizedBox(width: 8),
-                    const Text('Cargando espacios...'),
+                    Text(
+                      vm.isLoading
+                          ? 'Cargando espacios...'
+                          : 'Cargando marcadores...',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+          // Mostrar error de carga de marcadores
+          if (_markersError != null && !vm.isLoading)
+            Positioned(
+              top: 12,
+              left: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange[100],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(_markersError!)),
+                    TextButton(
+                      onPressed: () => _loadMarkers(vm.spaces),
+                      child: const Text('Reintentar'),
+                    ),
                   ],
                 ),
               ),
@@ -217,78 +442,55 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Mantiene marcadores del backend (vm.spaces)
-  Set<Marker> _buildMarkers(ExploreViewModel vm) {
-    final set = <Marker>{};
-
-    for (final s in vm.spaces) {
-      final loc = _parseLatLng(s.geo);
-      if (loc != null) {
-        // Solo agregar espacios con coordenadas válidas
-        set.add(_markerForSpace(s.id, s.title, s.subtitle ?? '', s.price, loc, s));
-      } else {
-        // Debug: espacios sin coordenadas válidas
-        debugPrint('Espacio sin coordenadas válidas: ${s.id} - ${s.title}, geo: ${s.geo}');
-      }
-    }
-    
-    debugPrint('Total espacios: ${vm.spaces.length}, marcadores en mapa: ${set.length}');
-    return set;
-  }
-
-  Marker _markerForSpace(
-    String id,
-    String title,
-    String subtitle,
-    double price,
-    LatLng position,
-    dynamic spaceObj,
-  ) {
-    return Marker(
-      markerId: MarkerId(id),
-      position: position,
-      infoWindow: InfoWindow(
-        title: title,
-        snippet: subtitle.isNotEmpty ? subtitle : '\$${price.toStringAsFixed(0)} COP',
-        onTap: () {
-          if (!mounted) return;
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => SpaceDetailScreen(space: spaceObj)),
-          );
-        },
-      ),
-      onTap: () => _animateTo(position, 17.0),
-    );
-  }
-
-  LatLng? _parseLatLng(dynamic geo) {
+  // Parsear coordenadas (versión optimizada para el Isolate)
+  static LatLng? _parseLatLng(dynamic geo) {
     try {
       if (geo == null) return null;
       
       if (geo is String) {
-        // Formato "lat,long" del backend
         final parts = geo.split(',');
         if (parts.length == 2) {
-          final lat = double.parse(parts[0].trim());
-          final lng = double.parse(parts[1].trim());
-          return LatLng(lat, lng);
+          final lat = double.tryParse(parts[0].trim());
+          final lng = double.tryParse(parts[1].trim());
+          if (lat != null && lng != null) return LatLng(lat, lng);
         }
       } else if (geo is Map) {
-        // Formato objeto con propiedades lat/lng
         final lat = geo['lat'] ?? geo['latitude'];
         final lng = geo['lng'] ?? geo['lon'] ?? geo['longitude'];
         if (lat != null && lng != null) {
-          return LatLng((lat as num).toDouble(), (lng as num).toDouble());
+          return LatLng(
+            (lat is num) ? lat.toDouble() : double.parse(lat.toString()),
+            (lng is num) ? lng.toDouble() : double.parse(lng.toString()),
+          );
         }
       } else if (geo is List && geo.length >= 2) {
-        // Formato array [lat, lng]
-        return LatLng((geo[0] as num).toDouble(), (geo[1] as num).toDouble());
+        return LatLng(
+          (geo[0] is num) ? geo[0].toDouble() : double.parse(geo[0].toString()),
+          (geo[1] is num) ? geo[1].toDouble() : double.parse(geo[1].toString()),
+        );
       }
     } catch (e) {
-      debugPrint('Error parsing geo: $geo, error: $e');
+      debugPrint('Error parsing geo: $e');
     }
     return null;
+  }
+
+  // Manejar el tap en un marcador
+  void _onMarkerTapped(String spaceId) {
+    if (!mounted) return;
+    
+    final vm = context.read<ExploreViewModel>();
+    final space = vm.spaces.firstWhere(
+      (s) => s.id == spaceId,
+      orElse: () => null as Space,
+    );
+    
+    if (space != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SpaceDetailScreen(space: space)),
+      );
+    }
   }
 
   Future<void> _animateTo(LatLng target, double zoom) async {
