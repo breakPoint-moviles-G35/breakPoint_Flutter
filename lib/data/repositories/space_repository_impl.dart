@@ -1,6 +1,7 @@
-import '../../domain/entities/space.dart';
-import '../../domain/repositories/space_repository.dart';
-import '../services/space_api.dart';
+ import 'dart:isolate';
+ import '../../domain/entities/space.dart';
+ import '../../domain/repositories/space_repository.dart';
+ import '../services/space_api.dart';
 
 class SpaceRepositoryImpl implements SpaceRepository {
   final SpaceApi api;
@@ -21,7 +22,11 @@ class SpaceRepositoryImpl implements SpaceRepository {
       end: end,
     );
 
-    return data.map((j) => Space.fromJson(j)).toList();
+    // Parseo en un isolate para no bloquear el hilo principal
+    final parsed = await Isolate.run(() {
+      return data.map((j) => Space.fromJson(j)).toList();
+    });
+    return parsed;
   }
 
   /// Obtener espacio por ID
@@ -48,7 +53,10 @@ class SpaceRepositoryImpl implements SpaceRepository {
   @override
   Future<List<Space>> getRecommendations(String userId) async {
     final data = await api.getRecommendations(userId);
-    return data.map((j) => Space.fromJson(j)).toList();
+    final parsed = await Isolate.run(() {
+      return data.map((j) => Space.fromJson(j)).toList();
+    });
+    return parsed;
   }
 
 
@@ -57,7 +65,10 @@ class SpaceRepositoryImpl implements SpaceRepository {
   Future<List<Space>> getSpacesByHost(String hostProfileId) async {
     try {
       final data = await api.getSpacesByHost(hostProfileId);
-      return data.map((j) => Space.fromJson(j)).toList();
+      final parsed = await Isolate.run(() {
+        return data.map((j) => Space.fromJson(j)).toList();
+      });
+      return parsed;
     } catch (e) {
       throw Exception('Error al obtener los espacios del host: $e');
     }
