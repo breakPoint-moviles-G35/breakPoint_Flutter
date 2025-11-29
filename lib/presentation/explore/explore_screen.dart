@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:breakpoint/presentation/widgets/offline_banner.dart';
 
 import 'package:breakpoint/routes/app_router.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
 import 'package:breakpoint/presentation/widgets/recommendation_card.dart';
 import 'package:breakpoint/presentation/details/space_detail_screen.dart';
 import 'package:breakpoint/presentation/explore/viewmodel/explore_viewmodel.dart';
-import 'package:breakpoint/presentation/widgets/offline_banner.dart';
 
 class ExploreScreen extends StatelessWidget {
   const ExploreScreen({super.key});
@@ -21,7 +21,6 @@ class ExploreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ExploreViewModel>();
-    vm.init();
 
     return Scaffold(
       appBar: AppBar(
@@ -56,11 +55,6 @@ class ExploreScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          if (vm.isOffline)
-            const Padding(
-              padding: EdgeInsets.only(right: 8.0),
-              child: Icon(Icons.cloud_off, color: Colors.redAccent, size: 22),
-            ),
           IconButton(
             onPressed: () => _openFilters(context, vm),
             icon: const Icon(Icons.tune),
@@ -70,11 +64,18 @@ class ExploreScreen extends StatelessWidget {
         ],
         centerTitle: true,
       ),
-      body: (vm.isLoading || vm.isLoadingRecommendations)
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+
+      body: SingleChildScrollView(
         child: Column(
           children: [
+            // 🔹 Banner de desconexión (igual a Reservations)
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: vm.isOffline
+                  ? OfflineBanner(onRetry: vm.retry,
+                      message: 'Sin conexión. Mostrando espacios guardados.')
+                  : const SizedBox.shrink(),
+            ),
             // Sección de recomendaciones
             if (vm.recommendations.isNotEmpty) ...[
               Container(
@@ -185,14 +186,6 @@ class ExploreScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // ⬇️ Banner de “Desconectado” justo arriba de la lista
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: vm.isOffline
-                  ? OfflineBanner(onRetry: vm.retry)
-                  : const SizedBox.shrink(),
-            ),
-
             // Título "Todos los espacios"
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
@@ -214,25 +207,9 @@ class ExploreScreen extends StatelessWidget {
             Builder(
               builder: (_) {
                 if (vm.isLoading) return const Center(child: CircularProgressIndicator());
+                if (vm.error != null && vm.spaces.isEmpty) return Center(child: Text(vm.error!));
+                if (vm.spaces.isEmpty) return const Center(child: Text('No hay espacios disponibles en el momento. Intenta más tarde.'));
 
-                // Mostrar error SOLO si no hay espacios para enseñar
-                if (vm.spaces.isEmpty) {
-                  if (vm.isOffline) {
-                    if (vm.error != null && vm.error!.toLowerCase().contains('cach')) {
-                      return const Center(child: Text('Sin conexión y sin datos guardados.'));
-                    } else {
-                      // Puede estar offline pero sin error de cache
-                      return const Center(child: Text('Sin conexión. No hay espacios para mostrar.'));
-                    }
-                  } else if (vm.error != null) {
-                    // Error técnico SOLO si no hay espacios y no es por falta de conexión
-                    return Center(child: Text('Error de conexión. Intenta de nuevo más tarde.'));
-                  } else {
-                    return const Center(child: Text('No hay espacios disponibles en el momento. Intenta más tarde.'));
-                  }
-                }
-
-                // Si hay espacios, muestra la lista y nunca muestra el error de conexión
                 return Column(
                   children: vm.spaces.map((s) {
                     return Padding(
@@ -264,9 +241,7 @@ class ExploreScreen extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         onDestinationSelected: (i) {
-          if (i == 1) {
-            Navigator.pushReplacementNamed(context, AppRouter.rate);
-          } else if (i == 2) {
+          if (i == 2) {
             Navigator.pushReplacementNamed(context, AppRouter.reservations);
           } else if (i == 3) {
             Navigator.pushReplacementNamed(context, AppRouter.profile);
