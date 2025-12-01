@@ -62,7 +62,9 @@ class ProfileScreen extends StatelessWidget {
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRouter.changePassword);
+                  },
                   child: const Text('Cambiar contraseña'),
                 ),
               ),

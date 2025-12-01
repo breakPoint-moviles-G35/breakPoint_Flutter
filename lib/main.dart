@@ -26,6 +26,7 @@ import 'package:breakpoint/presentation/login/login_screen.dart';
 import 'package:breakpoint/presentation/login/viewmodel/auth_viewmodel.dart';
 import 'package:breakpoint/presentation/map/map_screen.dart';
 import 'package:breakpoint/presentation/profile/profile_screen.dart';
+import 'package:breakpoint/presentation/profile/change_password_screen.dart';
 import 'package:breakpoint/presentation/rate/rate_screen.dart';
 import 'package:breakpoint/presentation/reservations/reservation_screen.dart';
 import 'package:breakpoint/presentation/reservations/reservations_screen.dart';
@@ -136,6 +137,7 @@ class MyApp extends StatelessWidget {
         AppRouter.rate: (context) => const RateScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.map: (_) => const MapScreen(),
+        AppRouter.changePassword: (context) => const ChangePasswordScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
               space: Space(
                 id: 'demo-id',
