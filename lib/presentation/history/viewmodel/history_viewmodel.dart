@@ -166,13 +166,17 @@ class HistoryViewModel extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final list = items.map((r) => r.toJson()).toList();
-      await prefs.setString('cached_history_reservations', jsonEncode(list));
+      final jsonStr = jsonEncode(list);
+      await prefs.setString('cached_history_reservations', jsonStr);
       await prefs.setInt(
         'cached_history_reservations_time',
         DateTime.now().millisecondsSinceEpoch,
       );
-    } catch (_) {
-      // Ignorar errores de cache
+      print('🔹 [HistoryViewModel] Guardado en SharedPreferences: ${items.length} reservas');
+      print('🔹 [HistoryViewModel] Clave: cached_history_reservations');
+      print('🔹 [HistoryViewModel] Tamaño JSON: ${jsonStr.length} caracteres');
+    } catch (e) {
+      print('❌ [HistoryViewModel] Error al guardar en cache: $e');
     }
   }
 
@@ -182,11 +186,18 @@ class HistoryViewModel extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString('cached_history_reservations');
-      if (jsonStr == null || jsonStr.isEmpty) return [];
+      if (jsonStr == null || jsonStr.isEmpty) {
+        print('🔹 [HistoryViewModel] No hay datos en cache (SharedPreferences vacío)');
+        return [];
+      }
 
       final list = jsonDecode(jsonStr) as List;
-      return list.map((json) => Reservation.fromJson(json as Map<String, dynamic>)).toList();
-    } catch (_) {
+      final reservations = list.map((json) => Reservation.fromJson(json as Map<String, dynamic>)).toList();
+      print('🔹 [HistoryViewModel] Cargado desde SharedPreferences: ${reservations.length} reservas');
+      print('🔹 [HistoryViewModel] Clave: cached_history_reservations');
+      return reservations;
+    } catch (e) {
+      print('❌ [HistoryViewModel] Error al cargar desde cache: $e');
       return [];
     }
   }
