@@ -29,4 +29,10 @@ abstract class AuthRepository {
     required String role, 
     String? name,
   });
+
+  /// Cambia la contraseña del usuario autenticado
+  Future<void> changePassword({
+    required String userId,
+    required String newPassword,
+  });
 }

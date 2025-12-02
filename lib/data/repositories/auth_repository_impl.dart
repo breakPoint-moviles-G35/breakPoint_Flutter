@@ -96,4 +96,12 @@ class AuthRepositoryImpl implements AuthRepository {
     final hasInternet = await hasInternetConnection();
     return hasUser && !hasInternet;
   }
+
+  @override
+  Future<void> changePassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    await api.changePassword(userId: userId, newPassword: newPassword);
+  }
 }

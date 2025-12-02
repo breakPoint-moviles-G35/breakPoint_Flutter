@@ -38,6 +38,20 @@ class AuthApi {
     }
   }
 
+  Future<void> changePassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    try {
+      await dio.post('/auth/ch-password', data: {
+        'userId': userId,
+        'newPassword': newPassword,
+      });
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
   String _extractMessage(DioException e) {
     var msg = 'Error de red';
     final data = e.response?.data;
@@ -49,5 +63,5 @@ class AuthApi {
       msg = e.message!;
     }
     return msg;
-    }
+  }
 }
