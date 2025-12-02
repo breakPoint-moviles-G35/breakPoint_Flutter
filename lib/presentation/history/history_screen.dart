@@ -1,10 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
+import 'package:breakpoint/presentation/widgets/offline_banner.dart';
 import 'package:breakpoint/routes/app_router.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -17,12 +22,39 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   bool isLoading = false;
   String? error;
+  bool isOffline = false;
   List<Reservation> historyReservations = [];
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
+    _initConnectivity();
     _load();
+  }
+
+  void _initConnectivity() {
+    Connectivity().checkConnectivity().then((status) {
+      setState(() {
+        isOffline = status.contains(ConnectivityResult.none);
+      });
+    });
+
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+      final hasNet = !result.contains(ConnectivityResult.none);
+      if (hasNet && isOffline) {
+        setState(() => isOffline = false);
+        _load();
+      } else if (!hasNet) {
+        setState(() => isOffline = true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -43,6 +75,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
           isLoading = false;
         });
         return;
+      }
+
+      // Verificar conectividad
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasInternet = !connectivity.contains(ConnectivityResult.none);
+      setState(() => isOffline = !hasInternet);
+
+      if (!hasInternet) {
+        // Sin internet: cargar desde cache
+        final cached = await _loadFromCache();
+        if (cached.isNotEmpty) {
+          setState(() {
+            historyReservations = cached;
+            error = null;
+            isLoading = false;
+          });
+          return;
+        } else {
+          setState(() {
+            error = 'Sin conexión y sin datos guardados.';
+            isLoading = false;
+          });
+          return;
+        }
       }
 
       // Obtener todas las reservas cerradas
@@ -68,14 +124,68 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
       }
 
+      // Guardar en cache
+      await _saveToCache(reservationsWithReview);
+
       setState(() {
         historyReservations = reservationsWithReview;
+        error = null;
         isLoading = false;
       });
     } catch (e) {
+      // Intentar cargar desde cache si hubo error
+      final cached = await _loadFromCache();
+      if (cached.isNotEmpty) {
+        setState(() {
+          historyReservations = cached;
+          error = null;
+          isOffline = true;
+        });
+      } else {
+        setState(() {
+          error = 'Error al cargar historial: $e';
+          isOffline = true;
+        });
+      }
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _saveToCache(List<Reservation> items) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = items.map((r) => r.toJson()).toList();
+      await prefs.setString('cached_history_reservations', jsonEncode(list));
+      await prefs.setInt(
+        'cached_history_reservations_time',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (_) {}
+  }
+
+  Future<List<Reservation>> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('cached_history_reservations');
+      if (jsonStr == null || jsonStr.isEmpty) return [];
+
+      final list = jsonDecode(jsonStr) as List;
+      return list.map((json) => Reservation.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _retry() async {
+    final connectivity = await Connectivity().checkConnectivity();
+    final hasNetwork = !connectivity.contains(ConnectivityResult.none);
+    setState(() => isOffline = !hasNetwork);
+    if (hasNetwork) {
+      await _load();
+    } else {
+      final cached = await _loadFromCache();
       setState(() {
-        error = 'Error al cargar historial: $e';
-        isLoading = false;
+        historyReservations = cached;
       });
     }
   }
@@ -86,10 +196,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         title: const Text('Historial de Reservas'),
         centerTitle: true,
+        actions: [
+          if (isOffline)
+            const Padding(
+              padding: EdgeInsets.only(right: 8.0),
+              child: Icon(Icons.cloud_off, color: Colors.redAccent),
+            ),
+        ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: Builder(builder: (context) {
+      body: Column(
+        children: [
+          // Banner de desconexión
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: isOffline
+                ? OfflineBanner(onRetry: _retry)
+                : const SizedBox.shrink(),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              child: Builder(builder: (context) {
           if (isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -141,7 +268,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               );
             },
           );
-        }),
+              }),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 3,
