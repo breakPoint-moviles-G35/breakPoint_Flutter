@@ -1,8 +1,8 @@
- import 'dart:convert';
- import 'package:flutter/material.dart';
- import 'package:shared_preferences/shared_preferences.dart';
- import 'package:connectivity_plus/connectivity_plus.dart';
- import 'package:dio/dio.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import '../../../domain/repositories/space_repository.dart';
 import '../../../domain/entities/space.dart';
 import '../../../data/services/review_api.dart';
@@ -10,7 +10,9 @@ import '../../../data/repositories/review_repository_impl.dart';
 
 class ExploreViewModel extends ChangeNotifier {
   final SpaceRepository repo;
-  ExploreViewModel(this.repo);
+  ExploreViewModel(this.repo) {
+    _loadLastViewed(); 
+  }
 
   // Estado general
   final TextEditingController searchCtrl = TextEditingController();
@@ -24,37 +26,82 @@ class ExploreViewModel extends ChangeNotifier {
   List<Space> spaces = [];
   bool isOffline = false;
 
-  // Estado para recomendaciones
+  // Estado recomendaciones
   bool isLoadingRecommendations = false;
   String? recommendationsError;
   List<Space> recommendations = [];
 
-  // Helpers
   bool get hasRange => start != null && end != null;
 
-  // Instancia del repositorio de reviews
   final ReviewRepositoryImpl _reviewRepo =
-
       ReviewRepositoryImpl(ReviewApi(Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'))));
-  // -------------------------------------------------------
-  // Cargar espacios normales con rating real
-  // -------------------------------------------------------
+
+  
+  static const _kLastViewedKey = "last_viewed_spaces";
+  List<Space> _lastViewed = [];
+
+  List<Space> get lastViewed => _lastViewed;
+
+  Future<void> addToRecent(Space space) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Eliminar si ya existe
+      _lastViewed.removeWhere((s) => s.id == space.id);
+
+      // Insertar al inicio
+      _lastViewed.insert(0, space);
+
+      // Limitar a 5
+      if (_lastViewed.length > 5) {
+        _lastViewed = _lastViewed.sublist(0, 5);
+      }
+
+      // Guardar en cache
+      final jsonList =
+          _lastViewed.map((s) => jsonEncode(_spaceToMinimalJson(s))).toList();
+
+      await prefs.setStringList(_kLastViewedKey, jsonList);
+
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _loadLastViewed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_kLastViewedKey);
+
+      if (raw == null) return;
+
+      final decoded = raw
+          .map((e) => jsonDecode(e))
+          .map((m) => Space.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+
+      _lastViewed = decoded;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  // ============================================================
+  // Cargar espacios
+  // ============================================================
   Future<void> load() async {
     try {
       isLoading = true;
       error = null;
       notifyListeners();
+
       final connectivity = await Connectivity().checkConnectivity();
       final hasInternet = connectivity != ConnectivityResult.none;
       isOffline = !hasInternet;
 
       if (!hasInternet) {
-        // 🔹 Sin internet: cargar cache local
         final cached = await _loadCachedSpaces();
         spaces = cached;
         notifyListeners();
       } else {
-        // 1️⃣ Obtener los espacios del backend principal
         spaces = await repo.search(
           query: searchCtrl.text,
           sortAsc: sortAsc,
@@ -62,26 +109,21 @@ class ExploreViewModel extends ChangeNotifier {
           end: end,
         );
 
-      // 2️⃣ Para cada espacio, traer el rating real desde Review API
-      await Future.wait(spaces.map((space) async {
-        try {
-          final stats = await _reviewRepo.getSpaceStats(space.id.toString());
-          if (stats.containsKey("average_rating")) {
-            space.rating = (stats["average_rating"] ?? 0.0).toDouble();
-          }
-        } catch (e) {
-          // Ignorar errores individuales para no romper todo el ciclo
-          print("⚠️ Error al cargar rating del espacio ${space.id}: $e");
-        }
-      }));
+        // cargar rating real
+        await Future.wait(spaces.map((space) async {
+          try {
+            final stats = await _reviewRepo.getSpaceStats(space.id.toString());
+            if (stats.containsKey("average_rating")) {
+              space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+            }
+          } catch (_) {}
+        }));
 
-        // 🔹 Guardar en cache local sin imágenes
         await _saveCachedSpaces(spaces);
       }
 
       notifyListeners();
     } catch (e) {
-      // Intentar cargar desde cache si hubo error al conectar
       isOffline = true;
       final cached = await _loadCachedSpaces();
       if (cached.isNotEmpty) {
@@ -96,9 +138,9 @@ class ExploreViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------------------------------------
-  // Cargar recomendaciones personalizadas
-  // -------------------------------------------------------
+  // ============================================================
+  // Recomendaciones
+  // ============================================================
   Future<void> loadRecommendations() async {
     try {
       isLoadingRecommendations = true;
@@ -115,16 +157,13 @@ class ExploreViewModel extends ChangeNotifier {
 
       recommendations = await repo.getRecommendations(userId);
 
-      // 🔹 También actualizar rating real de los recomendados
       await Future.wait(recommendations.map((space) async {
         try {
           final stats = await _reviewRepo.getSpaceStats(space.id.toString());
           if (stats.containsKey("average_rating")) {
             space.rating = (stats["average_rating"] ?? 0.0).toDouble();
           }
-        } catch (e) {
-          print("⚠️ Error al cargar rating de recomendación ${space.id}: $e");
-        }
+        } catch (_) {}
       }));
 
       notifyListeners();
@@ -136,15 +175,12 @@ class ExploreViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------------------------------------
-  // Otros métodos de control
-  // -------------------------------------------------------
+  
   void toggleSort() {
     sortAsc = !sortAsc;
     load();
   }
 
-  // Convierte un DateTimeRange a dos strings ISO y recarga
   void setStartEndFromRange(DateTimeRange? range) {
     if (range == null) {
       start = null;
@@ -156,7 +192,6 @@ class ExploreViewModel extends ChangeNotifier {
     load();
   }
 
-  // Formato YYYY-MM-DD para chip
   String fmtIsoDay(String iso) => iso.substring(0, 10);
 
   void onQueryChanged(String _) => load();
@@ -173,9 +208,9 @@ class ExploreViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------------------------------------
-  // Cache local de espacios (sin imagen)
-  // -------------------------------------------------------
+  // ============================================================
+  // Cache de espacios
+  // ============================================================
   static const _kCachedSpaces = 'cached_spaces_v1';
 
   Future<void> _saveCachedSpaces(List<Space> list) async {
@@ -183,9 +218,7 @@ class ExploreViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final payload = list.map(_spaceToMinimalJson).toList();
       await prefs.setString(_kCachedSpaces, jsonEncode(payload));
-    } catch (_) {
-      // Ignorar errores de cache
-    }
+    } catch (_) {}
   }
 
   Future<List<Space>> _loadCachedSpaces() async {
@@ -217,7 +250,6 @@ class ExploreViewModel extends ChangeNotifier {
       'rules': s.rules,
       'price': s.price,
       'rating': s.rating,
-      // imageUrl intencionalmente omitido
     };
   }
 }

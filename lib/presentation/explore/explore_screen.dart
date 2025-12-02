@@ -14,8 +14,61 @@ class ExploreScreen extends StatelessWidget {
   Future<void> _openFilters(BuildContext context, ExploreViewModel vm) async {
     final picked = await Navigator.pushNamed(context, AppRouter.filters) as DateTimeRange?;
     if (picked != null) {
-      vm.setStartEndFromRange(picked); 
+      vm.setStartEndFromRange(picked);
     }
+  }
+
+  // ============================================================
+  // BottomSheet — Últimos vistos (SIN IMÁGENES)
+  // ============================================================
+  Widget _buildLastViewedSheet(BuildContext context, ExploreViewModel vm) {
+    final items = vm.lastViewed;
+
+    if (items.isEmpty) {
+      return SizedBox(
+        height: 200,
+        child: const Center(
+          child: Text(
+            "No hay espacios vistos recientemente",
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 400,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, i) {
+          final s = items[i];
+          return ListTile(
+            leading: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.meeting_room, size: 28, color: Colors.black54),
+            ),
+            title: Text(s.title),
+            subtitle: Text(s.subtitle ?? ''),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SpaceDetailScreen(space: s),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -68,15 +121,20 @@ class ExploreScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 🔹 Banner de desconexión (igual a Reservations)
+            // 🔹 Banner de desconexión
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
               child: vm.isOffline
-                  ? OfflineBanner(onRetry: vm.retry,
-                      message: 'Sin conexión. Mostrando espacios guardados.')
+                  ? OfflineBanner(
+                      onRetry: vm.retry,
+                      message: 'Sin conexión. Mostrando espacios guardados.',
+                    )
                   : const SizedBox.shrink(),
             ),
-            // Sección de recomendaciones
+
+            // ======================================================
+            // Recomendaciones
+            // ======================================================
             if (vm.recommendations.isNotEmpty) ...[
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -115,7 +173,7 @@ class ExploreScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Indicadores de página
+
                     Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -126,7 +184,7 @@ class ExploreScreen extends StatelessWidget {
                             width: index == 0 ? 20 : 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: index == 0 
+                              color: index == 0
                                   ? const Color(0xFF5C1B6C)
                                   : Colors.grey[300],
                               borderRadius: BorderRadius.circular(4),
@@ -141,52 +199,80 @@ class ExploreScreen extends StatelessWidget {
               const Divider(height: 1),
             ],
 
-            // Sección de filtros y controles
+            // ======================================================
+            // Row con scroll horizontal — botones correctos
+            // ======================================================
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                        onPressed: vm.toggleSort,
-                        child: const Text('Ordenar por precio'),
-                      ),
-                      const SizedBox(width: 8),
-                      if (vm.hasRange)
-                        InputChip(
-                          label: Text(
-                            '${vm.fmtIsoDay(vm.start!)} – ${vm.fmtIsoDay(vm.end!)}',
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // Ordenar por precio
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                      onPressed: vm.toggleSort,
+                      child: const Text('Ordenar por precio'),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Últimos vistos
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                      icon: const Icon(Icons.history, size: 18),
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
                           ),
-                          onDeleted: () => vm.setStartEndFromRange(null),
+                          builder: (_) => _buildLastViewedSheet(context, vm),
+                        );
+                      },
+                      label: const Text('Últimos vistos'),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Chip de fechas
+                    if (vm.hasRange)
+                      Row(
+                        children: [
+                          InputChip(
+                            label: Text(
+                              '${vm.fmtIsoDay(vm.start!)} – ${vm.fmtIsoDay(vm.end!)}',
+                            ),
+                            onDeleted: () => vm.setStartEndFromRange(null),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
+
+                    // Botón Ver Mapa
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, AppRouter.map);
+                      },
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      label: const Text('Ver mapa'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF5C1B6C),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
                         ),
-                    ],
-                  ),
-                  // 🔹 Nuevo botón "Ver mapa"
-                  FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(context, AppRouter.map);
-                    },
-                    icon: const Icon(Icons.map_outlined, size: 18),
-                    label: const Text('Ver mapa'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF5C1B6C),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
             const SizedBox(height: 8),
 
-            // Título "Todos los espacios"
+            // ======================================================
+            // Título de sección
+            // ======================================================
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Align(
@@ -203,12 +289,18 @@ class ExploreScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
+            // ======================================================
             // Lista de espacios
+            // ======================================================
             Builder(
               builder: (_) {
                 if (vm.isLoading) return const Center(child: CircularProgressIndicator());
-                if (vm.error != null && vm.spaces.isEmpty) return Center(child: Text(vm.error!));
-                if (vm.spaces.isEmpty) return const Center(child: Text('No hay espacios disponibles en el momento. Intenta más tarde.'));
+                if (vm.error != null && vm.spaces.isEmpty) {
+                  return Center(child: Text(vm.error!));
+                }
+                if (vm.spaces.isEmpty) {
+                  return const Center(child: Text('No hay espacios disponibles.'));
+                }
 
                 return Column(
                   children: vm.spaces.map((s) {
