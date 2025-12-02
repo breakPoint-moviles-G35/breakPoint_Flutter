@@ -210,15 +210,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _calculateStats(List<Reservation> reservations) async {
     try {
       // Preparar datos serializables para el isolate
+      // IMPORTANTE: Solo pasar datos primitivos, no objetos complejos
       final reservationsData = reservations.map((r) => {
         'dayOfWeek': r.slotStart.weekday, // 1=Lunes, 7=Domingo
         'hour': r.slotStart.hour,
         'totalAmount': r.totalAmount,
       }).toList();
 
-      // Procesar en isolate
+      // Procesar en isolate - la función debe ser completamente estática
       final stats = await Isolate.run<Map<String, dynamic>>(() {
-        return _processStatsInIsolate(reservationsData);
+        // Esta función se ejecuta en un isolate completamente separado
+        // No puede acceder a ningún contexto de la clase
+        return _HistoryStatsProcessor.process(reservationsData);
       });
 
       if (mounted) {
@@ -229,64 +232,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } catch (e) {
       print('Error al calcular estadísticas: $e');
     }
-  }
-
-  /// 🔹 Función estática que se ejecuta en el isolate
-  /// Procesa las estadísticas de reservas sin bloquear el hilo principal
-  static Map<String, dynamic> _processStatsInIsolate(List<Map<String, dynamic>> reservationsData) {
-    if (reservationsData.isEmpty) {
-      return {
-        'totalSpent': 0.0,
-        'favoriteDays': [],
-        'favoriteHours': [],
-      };
-    }
-
-    // 1. Gastos totales
-    double totalSpent = 0.0;
-    for (final r in reservationsData) {
-      totalSpent += (r['totalAmount'] as num).toDouble();
-    }
-
-    // 2. Días favoritos (día de la semana)
-    final Map<int, int> dayCount = {};
-    for (final r in reservationsData) {
-      final day = r['dayOfWeek'] as int;
-      dayCount[day] = (dayCount[day] ?? 0) + 1;
-    }
-
-    // Encontrar días favoritos (puede haber empate)
-    final dayEntries = dayCount.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    final maxDayCount = dayEntries.isNotEmpty ? dayEntries.first.value : 0;
-    final favoriteDays = dayEntries
-        .where((e) => e.value == maxDayCount)
-        .map((e) => e.key)
-        .toList();
-
-    // 3. Horas favoritas
-    final Map<int, int> hourCount = {};
-    for (final r in reservationsData) {
-      final hour = r['hour'] as int;
-      hourCount[hour] = (hourCount[hour] ?? 0) + 1;
-    }
-
-    final hourEntries = hourCount.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    final maxHourCount = hourEntries.isNotEmpty ? hourEntries.first.value : 0;
-    final favoriteHours = hourEntries
-        .where((e) => e.value == maxHourCount)
-        .map((e) => e.key)
-        .toList()
-      ..sort();
-
-    return {
-      'totalSpent': totalSpent,
-      'favoriteDays': favoriteDays,
-      'favoriteHours': favoriteHours,
-    };
   }
 
   String _formatDayOfWeek(int day) {
@@ -348,112 +293,67 @@ class _HistoryScreenState extends State<HistoryScreen> {
             child: RefreshIndicator(
               onRefresh: _load,
               child: Builder(builder: (context) {
-          if (isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          if (error != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  error!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-          
-          if (historyReservations.isEmpty) {
-            return const Center(
-              child: Text(
-                'No tienes reservas en tu historial aún.',
-                style: TextStyle(fontSize: 16, color: Colors.black54),
-              ),
-            );
-          }
-
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            children: [
-              // 🔹 Sección de estadísticas
-              if (_stats != null) ...[
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Estadísticas',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF5C1B6C),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildStatRow(
-                          Icons.attach_money,
-                          'Gastos totales',
-                          '\$${(_stats!['totalSpent'] as num).toStringAsFixed(0)} COP',
-                        ),
-                        const SizedBox(height: 12),
-                        _buildStatRow(
-                          Icons.calendar_today,
-                          'Días favoritos',
-                          _formatFavoriteDays(
-                            List<int>.from(_stats!['favoriteDays'] as List),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildStatRow(
-                          Icons.access_time,
-                          'Hora favorita',
-                          _formatFavoriteHours(
-                            List<int>.from(_stats!['favoriteHours'] as List),
-                          ),
-                        ),
-                      ],
+                if (isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (error != null) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        error!,
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              // Lista de reservas
-              ...historyReservations.asMap().entries.map((entry) {
-                final index = entry.key;
-                final r = entry.value;
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: index < historyReservations.length - 1 ? 16 : 0,
-                  ),
-                  child: SpaceCard(
-                    title: r.spaceTitle,
-                    subtitle: _formatSlot(r),
-                    rating: 0,
-                    priceCOP: r.totalAmount,
-                    originalPriceCOP: r.discountApplied ? r.baseSubtotal : null,
-                    rightTag: 'Completada',
-                    imageAspectRatio: 16 / 9,
-                    imageUrl: r.spaceImageUrl,
-                    metaLines: [
-                      'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
-                      if (r.discountApplied)
-                        'Descuento aplicado: ${r.discountPercent.toStringAsFixed(0)}%',
-                    ],
-                    onTap: () {},
-                  ),
+                  );
+                }
+                
+                if (historyReservations.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No tienes reservas en tu historial aún.',
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  itemCount: historyReservations.length + (_stats != null ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // Mostrar estadísticas como primer item (barra superior)
+                    if (_stats != null && index == 0) {
+                      return _HistoryStatsHeader(stats: _stats!);
+                    }
+                    
+                    // Ajustar índice para las reservas
+                    final reservationIndex = _stats != null ? index - 1 : index;
+                    final r = historyReservations[reservationIndex];
+                    
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: SpaceCard(
+                        title: r.spaceTitle,
+                        subtitle: _formatSlot(r),
+                        rating: 0,
+                        priceCOP: r.totalAmount,
+                        originalPriceCOP: r.discountApplied ? r.baseSubtotal : null,
+                        rightTag: 'Completada',
+                        imageAspectRatio: 16 / 9,
+                        imageUrl: r.spaceImageUrl,
+                        metaLines: [
+                          'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
+                          if (r.discountApplied)
+                            'Descuento aplicado: ${r.discountPercent.toStringAsFixed(0)}%',
+                        ],
+                        onTap: () {},
+                      ),
+                    );
+                  },
                 );
-              }),
-            ],
-          );
               }),
             ),
           ),
@@ -488,30 +388,178 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final t = '${two(s.hour)}:${two(s.minute)} - ${two(e.hour)}:${two(e.minute)}';
     return '$t · $day';
   }
+}
 
-  Widget _buildStatRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: const Color(0xFF5C1B6C)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
+/// 🔹 Clase estática separada para procesar estadísticas en isolate
+/// Esta clase NO puede tener referencias a ningún contexto de la UI
+class _HistoryStatsProcessor {
+  /// 🔹 Función estática que se ejecuta en el isolate
+  /// Procesa las estadísticas de reservas sin bloquear el hilo principal
+  static Map<String, dynamic> process(List<Map<String, dynamic>> reservationsData) {
+    if (reservationsData.isEmpty) {
+      return {
+        'totalSpent': 0.0,
+        'favoriteDays': [],
+        'favoriteHours': [],
+      };
+    }
+
+    // 1. Gastos totales
+    double totalSpent = 0.0;
+    for (final r in reservationsData) {
+      totalSpent += (r['totalAmount'] as num).toDouble();
+    }
+
+    // 2. Días favoritos (día de la semana)
+    final Map<int, int> dayCount = {};
+    for (final r in reservationsData) {
+      final day = r['dayOfWeek'] as int;
+      dayCount[day] = (dayCount[day] ?? 0) + 1;
+    }
+
+    // Encontrar días favoritos (puede haber empate)
+    final dayEntries = dayCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    final maxDayCount = dayEntries.isNotEmpty ? dayEntries.first.value : 0;
+    final favoriteDays = dayEntries
+        .where((e) => e.value == maxDayCount)
+        .map((e) => e.key)
+        .toList();
+
+    // 3. Horas favoritas
+    final Map<int, int> hourCount = {};
+    for (final r in reservationsData) {
+      final hour = r['hour'] as int;
+      hourCount[hour] = (hourCount[hour] ?? 0) + 1;
+    }
+
+    final hourEntries = hourCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    final maxHourCount = hourEntries.isNotEmpty ? hourEntries.first.value : 0;
+    final favoriteHours = hourEntries
+        .where((e) => e.value == maxHourCount)
+        .map((e) => e.key)
+        .toList()
+      ..sort();
+
+    return {
+      'totalSpent': totalSpent,
+      'favoriteDays': favoriteDays,
+      'favoriteHours': favoriteHours,
+    };
+  }
+}
+
+/// 🔹 Widget para mostrar estadísticas como barra superior (similar a Host)
+class _HistoryStatsHeader extends StatelessWidget {
+  final Map<String, dynamic> stats;
+
+  const _HistoryStatsHeader({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final favoriteDays = List<int>.from(stats['favoriteDays'] as List);
+    final favoriteHours = List<int>.from(stats['favoriteHours'] as List);
+    
+    String formatDayOfWeek(int day) {
+      const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      return days[day - 1];
+    }
+    
+    String formatFavoriteDays(List<int> days) {
+      if (days.isEmpty) return 'N/A';
+      if (days.length == 1) {
+        return formatDayOfWeek(days.first);
+      }
+      return days.map((d) => formatDayOfWeek(d)).join(', ');
+    }
+    
+    String formatFavoriteHours(List<int> hours) {
+      if (hours.isEmpty) return 'N/A';
+      if (hours.length == 1) {
+        return '${hours.first.toString().padLeft(2, '0')}:00';
+      }
+      hours.sort();
+      final min = hours.first;
+      final max = hours.last;
+      if (max - min <= 2) {
+        return hours.map((h) => '${h.toString().padLeft(2, '0')}:00').join(', ');
+      } else {
+        return '${min.toString().padLeft(2, '0')}:00 - ${max.toString().padLeft(2, '0')}:00';
+      }
+    }
+
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _StatItem(
+              label: "Gastos totales",
+              value: "\$${(stats['totalSpent'] as num).toStringAsFixed(0)}",
+              color: Colors.green,
+            ),
+            _StatItem(
+              label: "Días favoritos",
+              value: formatFavoriteDays(favoriteDays),
+              color: const Color(0xFF5C1B6C),
+            ),
+            _StatItem(
+              label: "Hora favorita",
+              value: formatFavoriteHours(favoriteHours),
+              color: Colors.blue,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
             label,
             style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              color: Colors.black54,
             ),
+            textAlign: TextAlign.center,
           ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF5C1B6C),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
