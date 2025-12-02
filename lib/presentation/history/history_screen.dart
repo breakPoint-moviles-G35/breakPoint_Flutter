@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -136,6 +136,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // 🔹 ESTRATEGIA DE MULTI-THREADING: Calcular estadísticas en isolate
       if (reservationsWithReview.isNotEmpty) {
         await _calculateStats(reservationsWithReview);
+      } else {
+        // Si no hay reservas, limpiar estadísticas
+        setState(() {
+          _stats = null;
+        });
       }
 
       setState(() {
@@ -217,16 +222,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         'totalAmount': r.totalAmount,
       }).toList();
 
-      // Procesar en isolate - la función debe ser completamente estática
-      final stats = await Isolate.run<Map<String, dynamic>>(() {
-        // Esta función se ejecuta en un isolate completamente separado
-        // No puede acceder a ningún contexto de la clase
-        return _HistoryStatsProcessor.process(reservationsData);
-      });
+      // Usar compute de Flutter que maneja isolates de forma segura
+      // compute NO captura contexto, solo pasa los datos directamente
+      final stats = await compute(_HistoryStatsProcessor.process, reservationsData);
 
       if (mounted) {
         setState(() {
           _stats = stats;
+          print('🔹 Estadísticas calculadas: totalSpent=${stats['totalSpent']}, favoriteDays=${stats['favoriteDays']}, favoriteHours=${stats['favoriteHours']}');
         });
       }
     } catch (e) {
@@ -319,6 +322,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   );
                 }
 
+                // Debug: verificar si _stats está disponible
+                print('🔹 Build: historyReservations.length=${historyReservations.length}, _stats=${_stats != null ? "disponible" : "null"}');
+                
                 return ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -326,6 +332,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   itemBuilder: (context, index) {
                     // Mostrar estadísticas como primer item (barra superior)
                     if (_stats != null && index == 0) {
+                      print('🔹 Renderizando barra de estadísticas');
                       return _HistoryStatsHeader(stats: _stats!);
                     }
                     
