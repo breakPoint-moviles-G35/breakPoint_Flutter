@@ -84,8 +84,10 @@ class ReservationViewModel extends ChangeNotifier {
 
     if (period == 'PM' && hour != 12) hour += 12;
     if (period == 'AM' && hour == 12) hour = 0;
+    // Crear DateTime en hora local
     final dateTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, hour, minute);
-    return dateTime.toIso8601String();
+    // Convertir a UTC antes de enviar al backend
+    return dateTime.toUtc().toIso8601String();
   }
 
   Future<void> pickDate(BuildContext context) async {
@@ -110,12 +112,14 @@ class ReservationViewModel extends ChangeNotifier {
       notifyListeners();
 
       final start = _parseTimeToISO(selectedTime!);
-      final end = DateTime.parse(start).add(Duration(hours: durationHours));
+      // Parsear el start (que ya está en UTC) y agregar la duración
+      final startUtc = DateTime.parse(start);
+      final endUtc = startUtc.add(Duration(hours: durationHours));
 
       final reservation = await _repository.createReservation(
         spaceId: spaceId,
         slotStart: start,
-        slotEnd: end.toIso8601String(),
+        slotEnd: endUtc.toIso8601String(),
         guestCount: numberOfGuests,
       );
 
