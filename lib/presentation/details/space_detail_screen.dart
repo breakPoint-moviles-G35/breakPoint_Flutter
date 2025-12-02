@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/space.dart';
@@ -53,63 +52,43 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         ..sort((a, b) => b.slotStart.compareTo(a.slotStart));
       final last = bySpace.take(5).toList();
 
-      // 🔹 ESTRATEGIA DE MULTI-THREADING: Procesar estadísticas en isolate
-      // Convertir reservas a datos serializables para el isolate
-      final reservationsData = last.map((r) => {
-        'hour': r.slotStart.hour,
-      }).toList();
+      // Conteo por hora de inicio
+      final Map<int, int> countByHour = {};
+      for (final r in last) {
+        final h = r.slotStart.hour; // local
+        countByHour[h] = (countByHour[h] ?? 0) + 1;
+      }
 
-      // Procesar en isolate para no bloquear el hilo principal
-      final result = await Isolate.run<Map<String, dynamic>>(() {
-        return _processStatsInIsolate(reservationsData);
-      });
+      // Chips: top 4 horas
+      String fmtHour(int h) => '${h.toString().padLeft(2, '0')}:00';
+      final entries = countByHour.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final chips = entries.take(4).map((e) => [fmtHour(e.key), e.value]).toList();
+
+      // Barras: buckets por franja horaria
+      List<int> buckets = List.filled(6, 0);
+      int bucketIndex(int h) {
+        if (h >= 21 || h < 6) return 5; // 9p
+        if (h >= 18) return 4; // 6p
+        if (h >= 15) return 3; // 3p
+        if (h >= 12) return 2; // 12p
+        if (h >= 9) return 1; // 9a
+        return 0; // 6a
+      }
+      countByHour.forEach((h, c) => buckets[bucketIndex(h)] += c);
+      final maxCount = buckets.isEmpty ? 0 : buckets.reduce((a, b) => a > b ? a : b);
+      final bars = maxCount == 0
+          ? List.filled(6, 0.0)
+          : buckets.map((c) => c / maxCount).toList();
 
       if (!mounted) return;
       setState(() {
-        _chipsData = result['chips'] as List<List<dynamic>>;
-        _barHeights = (result['bars'] as List).map((e) => (e as num).toDouble()).toList();
+        _chipsData = chips;
+        _barHeights = bars;
       });
     } catch (_) {
       // dejamos los datos en cero si falla
     }
-  }
-
-  /// 🔹 Función estática que se ejecuta en el isolate
-  /// Procesa las estadísticas de reservas sin bloquear el hilo principal
-  static Map<String, dynamic> _processStatsInIsolate(List<Map<String, dynamic>> reservationsData) {
-    // Conteo por hora de inicio
-    final Map<int, int> countByHour = {};
-    for (final r in reservationsData) {
-      final h = r['hour'] as int;
-      countByHour[h] = (countByHour[h] ?? 0) + 1;
-    }
-
-    // Chips: top 4 horas
-    String fmtHour(int h) => '${h.toString().padLeft(2, '0')}:00';
-    final entries = countByHour.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final chips = entries.take(4).map((e) => [fmtHour(e.key), e.value]).toList();
-
-    // Barras: buckets por franja horaria
-    List<int> buckets = List.filled(6, 0);
-    int bucketIndex(int h) {
-      if (h >= 21 || h < 6) return 5; // 9p
-      if (h >= 18) return 4; // 6p
-      if (h >= 15) return 3; // 3p
-      if (h >= 12) return 2; // 12p
-      if (h >= 9) return 1; // 9a
-      return 0; // 6a
-    }
-    countByHour.forEach((h, c) => buckets[bucketIndex(h)] += c);
-    final maxCount = buckets.isEmpty ? 0 : buckets.reduce((a, b) => a > b ? a : b);
-    final bars = maxCount == 0
-        ? List.filled(6, 0.0)
-        : buckets.map((c) => c / maxCount).toList();
-
-    return {
-      'chips': chips,
-      'bars': bars,
-    };
   }
 
   @override
