@@ -126,7 +126,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           }
         } catch (e) {
           // Si hay error al obtener reviews, ignorar esta reserva
-          print('Error al verificar reviews para espacio ${reservation.spaceId}: $e');
         }
       }
 
@@ -217,21 +216,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // Preparar datos serializables para el isolate
       // IMPORTANTE: Solo pasar datos primitivos, no objetos complejos
       final reservationsData = reservations.map((r) {
-        // Prioridad: totalAmount > baseSubtotal > spacePrice > 0
-        // Esto asegura que siempre tengamos un monto válido para sumar
-        double amount = 0.0;
-        if (r.totalAmount > 0) {
-          amount = r.totalAmount;
-        } else if (r.baseSubtotal > 0) {
-          amount = r.baseSubtotal;
-        } else if (r.spacePrice != null && r.spacePrice! > 0) {
-          amount = r.spacePrice!;
-        }
-        print('🔹 Reserva: totalAmount=${r.totalAmount}, baseSubtotal=${r.baseSubtotal}, spacePrice=${r.spacePrice}, usando=$amount');
         return {
           'dayOfWeek': r.slotStart.weekday, // 1=Lunes, 7=Domingo
           'hour': r.slotStart.hour,
-          'totalAmount': amount,
         };
       }).toList();
 
@@ -242,11 +229,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (mounted) {
         setState(() {
           _stats = stats;
-          print('🔹 Estadísticas calculadas: totalSpent=${stats['totalSpent']}, favoriteDays=${stats['favoriteDays']}, favoriteHours=${stats['favoriteHours']}');
         });
       }
     } catch (e) {
-      print('Error al calcular estadísticas: $e');
+      // Error al calcular estadísticas - ignorar
     }
   }
 
@@ -335,9 +321,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   );
                 }
 
-                // Debug: verificar si _stats está disponible
-                print('🔹 Build: historyReservations.length=${historyReservations.length}, _stats=${_stats != null ? "disponible" : "null"}');
-                
                 return ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -345,7 +328,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   itemBuilder: (context, index) {
                     // Mostrar estadísticas como primer item (barra superior)
                     if (_stats != null && index == 0) {
-                      print('🔹 Renderizando barra de estadísticas');
                       return _HistoryStatsHeader(stats: _stats!);
                     }
                     
@@ -418,19 +400,12 @@ class _HistoryStatsProcessor {
   static Map<String, dynamic> process(List<Map<String, dynamic>> reservationsData) {
     if (reservationsData.isEmpty) {
       return {
-        'totalSpent': 0.0,
         'favoriteDays': [],
         'favoriteHours': [],
       };
     }
 
-    // 1. Gastos totales
-    double totalSpent = 0.0;
-    for (final r in reservationsData) {
-      totalSpent += (r['totalAmount'] as num).toDouble();
-    }
-
-    // 2. Días favoritos (día de la semana)
+    // 1. Días favoritos (día de la semana)
     final Map<int, int> dayCount = {};
     for (final r in reservationsData) {
       final day = r['dayOfWeek'] as int;
@@ -447,7 +422,7 @@ class _HistoryStatsProcessor {
         .map((e) => e.key)
         .toList();
 
-    // 3. Horas favoritas
+    // 2. Horas favoritas
     final Map<int, int> hourCount = {};
     for (final r in reservationsData) {
       final hour = r['hour'] as int;
@@ -465,7 +440,6 @@ class _HistoryStatsProcessor {
       ..sort();
 
     return {
-      'totalSpent': totalSpent,
       'favoriteDays': favoriteDays,
       'favoriteHours': favoriteHours,
     };
@@ -515,29 +489,28 @@ class _HistoryStatsHeader extends StatelessWidget {
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _StatItem(
-              label: "Gastos totales",
-              value: "\$${(stats['totalSpent'] as num).toStringAsFixed(0)}",
-              color: Colors.green,
-            ),
-            _StatItem(
-              label: "Días favoritos",
-              value: formatFavoriteDays(favoriteDays),
-              color: const Color(0xFF5C1B6C),
-            ),
-            _StatItem(
-              label: "Hora favorita",
-              value: formatFavoriteHours(favoriteHours),
-              color: Colors.blue,
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Expanded(
+                child: _StatItem(
+                  label: "Días favoritos",
+                  value: formatFavoriteDays(favoriteDays),
+                  color: const Color(0xFF5C1B6C),
+                ),
+              ),
+              Expanded(
+                child: _StatItem(
+                  label: "Hora favorita",
+                  value: formatFavoriteHours(favoriteHours),
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
     );
   }
 }
