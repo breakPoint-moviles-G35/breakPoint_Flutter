@@ -49,4 +49,20 @@ class Space {
       imageUrl: json['imageUrl'] ?? json['image_url'] ?? '',
     );
   }
+  Map<String, dynamic> toJson() {
+  return {
+    'id': id,
+    'title': title,
+    'subtitle': subtitle,
+    'geo': geo,
+    'capacity': capacity,
+    'amenities': amenities,
+    'accessibility': accessibility,
+    'rules': rules,
+    'price': price,
+    'rating': rating,
+    'imageUrl': imageUrl,
+  };
+}
+
 }
