@@ -10,7 +10,9 @@ import '../../../data/repositories/review_repository_impl.dart';
 
 class ExploreViewModel extends ChangeNotifier {
   final SpaceRepository repo;
-  ExploreViewModel(this.repo);
+  ExploreViewModel(this.repo) {
+    _loadLastViewed(); 
+  }
 
   // Estado general
   final TextEditingController searchCtrl = TextEditingController();
@@ -24,41 +26,86 @@ class ExploreViewModel extends ChangeNotifier {
   List<Space> spaces = [];
   bool isOffline = false;
 
-  // Estado para recomendaciones
+  // Estado recomendaciones
   bool isLoadingRecommendations = false;
   String? recommendationsError;
   List<Space> recommendations = [];
 
-  // Helpers
   bool get hasRange => start != null && end != null;
 
-  // Instancia del repositorio de reviews
   final ReviewRepositoryImpl _reviewRepo =
-
       ReviewRepositoryImpl(ReviewApi(Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'))));
 
   // 🔹 ESTRATEGIA DE CACHING: HashMap en memoria para ratings de espacios
   // Clave: spaceId (String), Valor: rating (double)
   final Map<String, double> _ratingCache = {};
-  // -------------------------------------------------------
+
+  // 🔹 Espacios vistos recientemente (funcionalidad del compañero)
+  static const _kLastViewedKey = "last_viewed_spaces";
+  List<Space> _lastViewed = [];
+
+  List<Space> get lastViewed => _lastViewed;
+
+  Future<void> addToRecent(Space space) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Eliminar si ya existe
+      _lastViewed.removeWhere((s) => s.id == space.id);
+
+      // Insertar al inicio
+      _lastViewed.insert(0, space);
+
+      // Limitar a 5
+      if (_lastViewed.length > 5) {
+        _lastViewed = _lastViewed.sublist(0, 5);
+      }
+
+      // Guardar en cache
+      final jsonList =
+          _lastViewed.map((s) => jsonEncode(_spaceToMinimalJson(s))).toList();
+
+      await prefs.setStringList(_kLastViewedKey, jsonList);
+
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _loadLastViewed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_kLastViewedKey);
+
+      if (raw == null) return;
+
+      final decoded = raw
+          .map((e) => jsonDecode(e))
+          .map((m) => Space.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+
+      _lastViewed = decoded;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  // ============================================================
   // Cargar espacios normales con rating real
-  // -------------------------------------------------------
+  // ============================================================
   Future<void> load() async {
     try {
       isLoading = true;
       error = null;
       notifyListeners();
+
       final connectivity = await Connectivity().checkConnectivity();
-      final hasInternet = connectivity != ConnectivityResult.none;
+      final hasInternet = !connectivity.contains(ConnectivityResult.none);
       isOffline = !hasInternet;
 
       if (!hasInternet) {
-        // 🔹 Sin internet: cargar cache local
         final cached = await _loadCachedSpaces();
         spaces = cached;
         notifyListeners();
       } else {
-        // 1️⃣ Obtener los espacios del backend principal
         spaces = await repo.search(
           query: searchCtrl.text,
           sortAsc: sortAsc,
@@ -92,13 +139,11 @@ class ExploreViewModel extends ChangeNotifier {
         }
       }));
 
-        // 🔹 Guardar en cache local sin imágenes
         await _saveCachedSpaces(spaces);
       }
 
       notifyListeners();
     } catch (e) {
-      // Intentar cargar desde cache si hubo error al conectar
       isOffline = true;
       final cached = await _loadCachedSpaces();
       if (cached.isNotEmpty) {
@@ -113,9 +158,9 @@ class ExploreViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------------------------------------
-  // Cargar recomendaciones personalizadas
-  // -------------------------------------------------------
+  // ============================================================
+  // Recomendaciones
+  // ============================================================
   Future<void> loadRecommendations() async {
     try {
       isLoadingRecommendations = true;
@@ -152,9 +197,7 @@ class ExploreViewModel extends ChangeNotifier {
             // Guardar en cache
             _ratingCache[spaceId] = rating;
           }
-        } catch (e) {
-          print("⚠️ Error al cargar rating de recomendación ${space.id}: $e");
-        }
+        } catch (_) {}
       }));
 
       notifyListeners();
@@ -166,15 +209,12 @@ class ExploreViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------------------------------------
-  // Otros métodos de control
-  // -------------------------------------------------------
+  
   void toggleSort() {
     sortAsc = !sortAsc;
     load();
   }
 
-  // Convierte un DateTimeRange a dos strings ISO y recarga
   void setStartEndFromRange(DateTimeRange? range) {
     if (range == null) {
       start = null;
@@ -186,14 +226,13 @@ class ExploreViewModel extends ChangeNotifier {
     load();
   }
 
-  // Formato YYYY-MM-DD para chip
   String fmtIsoDay(String iso) => iso.substring(0, 10);
 
   void onQueryChanged(String _) => load();
 
   Future<void> retry() async {
     final connectivity = await Connectivity().checkConnectivity();
-    final hasInternet = connectivity != ConnectivityResult.none;
+    final hasInternet = !connectivity.contains(ConnectivityResult.none);
     isOffline = !hasInternet;
     if (hasInternet) {
       await load();
@@ -203,9 +242,9 @@ class ExploreViewModel extends ChangeNotifier {
     }
   }
 
-  // -------------------------------------------------------
-  // Cache local de espacios (sin imagen)
-  // -------------------------------------------------------
+  // ============================================================
+  // Cache de espacios
+  // ============================================================
   static const _kCachedSpaces = 'cached_spaces_v1';
 
   Future<void> _saveCachedSpaces(List<Space> list) async {
@@ -213,9 +252,7 @@ class ExploreViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final payload = list.map(_spaceToMinimalJson).toList();
       await prefs.setString(_kCachedSpaces, jsonEncode(payload));
-    } catch (_) {
-      // Ignorar errores de cache
-    }
+    } catch (_) {}
   }
 
   Future<List<Space>> _loadCachedSpaces() async {
@@ -247,7 +284,6 @@ class ExploreViewModel extends ChangeNotifier {
       'rules': s.rules,
       'price': s.price,
       'rating': s.rating,
-      // imageUrl intencionalmente omitido
     };
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/space.dart';
 import '../../domain/entities/host.dart';
-// import '../../domain/repositories/host_repository.dart';
 import '../../domain/repositories/reservation_repository.dart';
 import '../reservations/reservation_screen.dart';
 import '../host/host_detail_screen.dart';
@@ -12,10 +11,12 @@ import '../reviews/review_screen.dart';
 import '../../../data/services/review_api.dart';
 import '../../../data/repositories/review_repository_impl.dart';
 import '../../../core/constants/api_constants.dart';
-// import '../../../domain/repositories/review_repository.dart';
 import '../../../domain/entities/review.dart';
 import 'package:dio/dio.dart';
 import 'viewmodel/review_summary_viewmodel.dart';
+
+
+import '../explore/viewmodel/explore_viewmodel.dart';
 
 class SpaceDetailScreen extends StatefulWidget {
   final Space space;
@@ -33,13 +34,21 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
   List<List<dynamic>> _chipsData = const [];
   List<double> _barHeights = const [0, 0, 0, 0, 0, 0];
   final List<String> _xLabels = const ['6a', '9a', '12p', '3p', '6p', '9p'];
+
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      
+      final exploreVm = Provider.of<ExploreViewModel>(context, listen: false);
+      exploreVm.addToRecent(widget.space);
+
+      // Lógica original (NO tocada)
       final hostViewModel = Provider.of<HostViewModel>(context, listen: false);
       hostViewModel.clearHost();
       hostViewModel.loadHostBySpaceId(widget.space.id);
+
       _loadStatsFromBookings();
     });
   }
@@ -65,7 +74,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         ..sort((a, b) => b.value.compareTo(a.value));
       final chips = entries.take(4).map((e) => [fmtHour(e.key), e.value]).toList();
 
-      // Barras: buckets por franja horaria
+      // Barras por franja
       List<int> buckets = List.filled(6, 0);
       int bucketIndex(int h) {
         if (h >= 21 || h < 6) return 5; // 9p
@@ -75,8 +84,11 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         if (h >= 9) return 1; // 9a
         return 0; // 6a
       }
+
       countByHour.forEach((h, c) => buckets[bucketIndex(h)] += c);
+
       final maxCount = buckets.isEmpty ? 0 : buckets.reduce((a, b) => a > b ? a : b);
+
       final bars = maxCount == 0
           ? List.filled(6, 0.0)
           : buckets.map((c) => c / maxCount).toList();
@@ -86,9 +98,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         _chipsData = chips;
         _barHeights = bars;
       });
-    } catch (_) {
-      // dejamos los datos en cero si falla
-    }
+    } catch (_) {}
   }
 
   @override
@@ -133,7 +143,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                   ],
                 ),
 
-                // Título y descripción (sin rating visual)
+                // Título
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -166,8 +176,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                   child: Column(
                     children: widget.space.amenities.isNotEmpty
                         ? widget.space.amenities
-                            .map(
-                                (a) => _AmenityRow(icon: Icons.check, label: a))
+                            .map((a) => _AmenityRow(icon: Icons.check, label: a))
                             .toList()
                         : [const Text("No amenities listed")],
                   ),
@@ -175,7 +184,6 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
 
                 const Divider(),
 
-                // Estadísticas mock
                 _buildStatsSection(context),
 
                 const Divider(),
@@ -195,14 +203,14 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                     },
                   ),
                 ),
+
                 const SizedBox(height: 16),
 
                 Center(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -225,7 +233,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
 
                 const Divider(),
 
-                // Reviews dinámicas
+                // Reviews
                 Consumer<ReviewSummaryViewModel>(
                   builder: (context, vm, _) {
                     final rating = vm.averageRating.toStringAsFixed(1);
@@ -247,11 +255,12 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                         Center(
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 28, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                               side: const BorderSide(color: Colors.black),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                             onPressed: () {
                               Navigator.push(
@@ -304,10 +313,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "“${review.text}”",
-              style: const TextStyle(fontSize: 15, height: 1.4),
-            ),
+            Text("“${review.text}”",
+                style: const TextStyle(fontSize: 15, height: 1.4)),
             const SizedBox(height: 12),
             Text(
               "Review destacada",
@@ -329,16 +336,12 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      review.userName ?? "Usuario",
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      review.userEmail ?? "",
-                      style:
-                          const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
+                    Text(review.userName ?? "Usuario",
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                    Text(review.userEmail ?? "",
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 13)),
                   ],
                 ),
               ],
@@ -355,7 +358,8 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey[300]!)),
+        border:
+            Border(top: BorderSide(color: Colors.grey[300]!)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -366,10 +370,9 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepPurple,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: () {
               Navigator.push(
@@ -497,7 +500,7 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
     );
   }
 
-  // -------------------- Stats (últimas 5 reservas del usuario para este espacio) --------------------
+  // -------------------- Stats --------------------
   Widget _buildStatsSection(BuildContext context) {
     final chips = _chipsData;
     final barHeights = _barHeights;
@@ -520,16 +523,16 @@ class _SpaceDetailScreenState extends State<SpaceDetailScreen> {
                   )
                 else
                   for (final c in chips)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: InputChip(
-                      label: Text('${c[0]}  x${c[1]}'),
-                      backgroundColor: const Color(0xFFF2E7FE),
-                      labelStyle:
-                          const TextStyle(color: Color(0xFF5C1B6C)),
-                      onPressed: () {},
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: InputChip(
+                        label: Text('${c[0]}  x${c[1]}'),
+                        backgroundColor: const Color(0xFFF2E7FE),
+                        labelStyle:
+                            const TextStyle(color: Color(0xFF5C1B6C)),
+                        onPressed: () {},
+                      ),
                     ),
-                  ),
               ],
             ),
           ),
