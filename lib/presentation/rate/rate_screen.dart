@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
+import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
 import 'package:breakpoint/routes/app_router.dart';
@@ -27,11 +28,50 @@ class _RateScreenState extends State<RateScreen> {
   Future<void> _load() async {
     try {
       setState(() { isLoading = true; error = null; });
-      final repo = context.read<ReservationRepository>();
-      closed = await repo.getClosedReservations();
+      final reservationRepo = context.read<ReservationRepository>();
+      final reviewRepo = context.read<ReviewRepository>();
+      final authRepo = context.read<AuthRepository>();
+      final currentUser = authRepo.currentUser;
+
+      if (currentUser == null) {
+        setState(() {
+          error = 'Usuario no autenticado';
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Obtener todas las reservas cerradas
+      final allClosed = await reservationRepo.getClosedReservations();
+
+      // Filtrar solo las que NO tienen review del usuario actual
+      final closedWithoutReview = <Reservation>[];
+      
+      for (final reservation in allClosed) {
+        try {
+          // Obtener todas las reviews del espacio
+          final reviews = await reviewRepo.getReviewsBySpace(reservation.spaceId);
+          
+          // Verificar si el usuario actual tiene una review para este espacio
+          final hasUserReview = reviews.any((review) => review.userId == currentUser.id);
+          
+          // Solo agregar si NO tiene review
+          if (!hasUserReview) {
+            closedWithoutReview.add(reservation);
+          }
+        } catch (e) {
+          // Si hay error al obtener reviews, asumir que no tiene review y agregar
+          print('Error al verificar reviews para espacio ${reservation.spaceId}: $e');
+          closedWithoutReview.add(reservation);
+        }
+      }
+
+      setState(() {
+        closed = closedWithoutReview;
+        isLoading = false;
+      });
     } catch (e) {
       error = 'Error al cargar reservas cerradas: $e';
-    } finally {
       if (mounted) setState(() { isLoading = false; });
     }
   }
@@ -152,6 +192,8 @@ class _RateScreenState extends State<RateScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Review creada correctamente')),
                 );
+                // Recargar la lista para que la reserva desaparezca de rate
+                _load();
               }
             } catch (e) {
               setMState(() => error = 'Error al crear review: $e');

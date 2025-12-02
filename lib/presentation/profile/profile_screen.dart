@@ -52,6 +52,25 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
+              // Historial de reservas
+              SizedBox(
+                width: 220,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5C1B6C),
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRouter.history);
+                  },
+                  child: const Text('Historial'),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
               // Cambiar contraseña (sin acción por ahora)
               SizedBox(
                 width: 220,

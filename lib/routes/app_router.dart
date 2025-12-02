@@ -11,6 +11,7 @@ class AppRouter {
   static const String profile = '/profile';
   static const String map = '/map';
   static const String rate = '/rate';
+  static const String history = '/history';
   static const String changePassword = '/change-password';
 
   // 🔹 Host / Arrendador

@@ -28,6 +28,7 @@ import 'package:breakpoint/presentation/map/map_screen.dart';
 import 'package:breakpoint/presentation/profile/profile_screen.dart';
 import 'package:breakpoint/presentation/profile/change_password_screen.dart';
 import 'package:breakpoint/presentation/rate/rate_screen.dart';
+import 'package:breakpoint/presentation/history/history_screen.dart';
 import 'package:breakpoint/presentation/reservations/reservation_screen.dart';
 import 'package:breakpoint/presentation/reservations/reservations_screen.dart';
 import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
@@ -83,6 +84,7 @@ Future<void> main() async {
         Provider<HostRepository>(create: (_) => hostRepo),
         Provider<ReviewRepository>(create: (_) => reviewRepo),
         Provider<SpaceRepository>(create: (_) => spaceRepo),
+        Provider<AuthRepository>(create: (_) => authRepo),
         Provider<NfcService>(create: (_) => nfcService),
         ChangeNotifierProvider(
           create: (context) => ReservationsViewModel(
@@ -136,6 +138,7 @@ class MyApp extends StatelessWidget {
         AppRouter.reservations: (context) => const ReservationsScreen(),
         AppRouter.rate: (context) => const RateScreen(),
         AppRouter.profile: (context) => const ProfileScreen(),
+        AppRouter.history: (context) => const HistoryScreen(),
         AppRouter.map: (_) => const MapScreen(),
         AppRouter.changePassword: (context) => const ChangePasswordScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
