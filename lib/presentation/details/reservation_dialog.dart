@@ -87,10 +87,15 @@ class _ReservationDialogState extends State<ReservationDialog> {
       final api = ReservationApi(dio);
       final repo = ReservationRepositoryImpl(api);
 
+      // 🔹 Convertir fechas locales a UTC antes de enviar al backend
+      // El backend ahora espera fechas en formato UTC con 'Z'
+      final startUtc = _startTime!.toUtc().toIso8601String();
+      final endUtc = _endTime!.toUtc().toIso8601String();
+
       await repo.createReservation(
         spaceId: widget.space.id,
-        slotStart: _startTime!.toIso8601String(),
-        slotEnd: _endTime!.toIso8601String(),
+        slotStart: startUtc,
+        slotEnd: endUtc,
         guestCount: guestCount,
       );
 
