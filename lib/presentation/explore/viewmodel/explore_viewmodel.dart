@@ -1,8 +1,8 @@
- import 'dart:convert';
- import 'package:flutter/material.dart';
- import 'package:shared_preferences/shared_preferences.dart';
- import 'package:connectivity_plus/connectivity_plus.dart';
- import 'package:dio/dio.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import '../../../domain/repositories/space_repository.dart';
 import '../../../domain/entities/space.dart';
 import '../../../data/services/review_api.dart';
@@ -36,6 +36,10 @@ class ExploreViewModel extends ChangeNotifier {
   final ReviewRepositoryImpl _reviewRepo =
 
       ReviewRepositoryImpl(ReviewApi(Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'))));
+
+  // 🔹 ESTRATEGIA DE CACHING: HashMap en memoria para ratings de espacios
+  // Clave: spaceId (String), Valor: rating (double)
+  final Map<String, double> _ratingCache = {};
   // -------------------------------------------------------
   // Cargar espacios normales con rating real
   // -------------------------------------------------------
@@ -63,11 +67,24 @@ class ExploreViewModel extends ChangeNotifier {
         );
 
       // 2️⃣ Para cada espacio, traer el rating real desde Review API
+      // 🔹 Usar cache HashMap para evitar llamadas repetidas
       await Future.wait(spaces.map((space) async {
         try {
-          final stats = await _reviewRepo.getSpaceStats(space.id.toString());
+          final spaceId = space.id.toString();
+          
+          // Verificar si el rating está en cache
+          if (_ratingCache.containsKey(spaceId)) {
+            space.rating = _ratingCache[spaceId]!;
+            return;
+          }
+          
+          // Si no está en cache, obtener de la API
+          final stats = await _reviewRepo.getSpaceStats(spaceId);
           if (stats.containsKey("average_rating")) {
-            space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+            final rating = (stats["average_rating"] ?? 0.0).toDouble();
+            space.rating = rating;
+            // Guardar en cache
+            _ratingCache[spaceId] = rating;
           }
         } catch (e) {
           // Ignorar errores individuales para no romper todo el ciclo
@@ -116,11 +133,24 @@ class ExploreViewModel extends ChangeNotifier {
       recommendations = await repo.getRecommendations(userId);
 
       // 🔹 También actualizar rating real de los recomendados
+      // 🔹 Usar cache HashMap para evitar llamadas repetidas
       await Future.wait(recommendations.map((space) async {
         try {
-          final stats = await _reviewRepo.getSpaceStats(space.id.toString());
+          final spaceId = space.id.toString();
+          
+          // Verificar si el rating está en cache
+          if (_ratingCache.containsKey(spaceId)) {
+            space.rating = _ratingCache[spaceId]!;
+            return;
+          }
+          
+          // Si no está en cache, obtener de la API
+          final stats = await _reviewRepo.getSpaceStats(spaceId);
           if (stats.containsKey("average_rating")) {
-            space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+            final rating = (stats["average_rating"] ?? 0.0).toDouble();
+            space.rating = rating;
+            // Guardar en cache
+            _ratingCache[spaceId] = rating;
           }
         } catch (e) {
           print("⚠️ Error al cargar rating de recomendación ${space.id}: $e");
