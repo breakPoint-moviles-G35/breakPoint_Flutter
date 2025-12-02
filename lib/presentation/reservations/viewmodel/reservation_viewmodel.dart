@@ -103,11 +103,13 @@ class ReservationViewModel extends ChangeNotifier {
   /// Valida que la hora seleccionada no haya pasado
   /// Permite reservas con al menos 1 hora de anticipación
   bool _isTimeInPast(DateTime dateTime) {
-    final now = DateTime.now();
+    // Asegurarse de usar hora local
+    final now = DateTime.now(); // DateTime.now() ya devuelve hora local
     // Agregar 1 hora de margen para evitar problemas de zona horaria
     final minimumTime = now.add(const Duration(hours: 1));
     
     // Comparar solo fecha y hora, ignorando segundos y milisegundos
+    // Asegurarse de que ambos DateTime estén en hora local
     final selected = DateTime(
       dateTime.year,
       dateTime.month,
@@ -165,9 +167,12 @@ class ReservationViewModel extends ChangeNotifier {
       
       // Validar que la hora no haya pasado (con margen de 1 hora)
       if (_isTimeInPast(dateTimeLocal)) {
-        final now = DateTime.now();
+        final now = DateTime.now(); // Esto ya está en hora local
         final minHour = now.add(const Duration(hours: 1));
-        errorMessage = 'La hora de inicio debe ser al menos 1 hora en el futuro. Hora mínima: ${minHour.hour}:${minHour.minute.toString().padLeft(2, '0')}';
+        // Formatear la hora en formato 12 horas (AM/PM) - asegurarse de usar hora local
+        final hour12 = minHour.hour > 12 ? minHour.hour - 12 : (minHour.hour == 0 ? 12 : minHour.hour);
+        final period = minHour.hour >= 12 ? 'PM' : 'AM';
+        errorMessage = 'La hora de inicio debe ser al menos 1 hora en el futuro. Hora mínima: $hour12:${minHour.minute.toString().padLeft(2, '0')} $period';
         return null;
       }
 
