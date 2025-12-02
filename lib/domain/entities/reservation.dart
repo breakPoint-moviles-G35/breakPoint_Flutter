@@ -12,6 +12,7 @@ class Reservation {
   final String spaceId;
   final String spaceTitle;
   final String? spaceImageUrl;
+  final double? spacePrice; // Precio del espacio (del JSON space.price)
   final double baseSubtotal;
   final bool discountApplied;
   final double discountPercent;
@@ -29,6 +30,7 @@ class Reservation {
     required this.spaceId,
     required this.spaceTitle,
     this.spaceImageUrl,
+    this.spacePrice,
     required this.baseSubtotal,
     required this.discountApplied,
     required this.discountPercent,
@@ -77,6 +79,7 @@ class Reservation {
       spaceId: json['space']?['id']?.toString() ?? '',
       spaceTitle: json['space']?['title'] ?? '',
       spaceImageUrl: json['space']?['imageUrl'] ?? json['space']?['image_url'],
+      spacePrice: json['space']?['price'] != null ? _toDouble(json['space']?['price'], 0) : null,
       baseSubtotal: _toDouble(baseSubtotalValue, 0),
       discountApplied: _toBool(discountAppliedValue),
       discountPercent: _toDouble(discountPercentValue, 0),
@@ -97,6 +100,7 @@ class Reservation {
       'spaceId': spaceId,
       'spaceTitle': spaceTitle,
       'spaceImageUrl': spaceImageUrl,
+      'spacePrice': spacePrice,
       'baseSubtotal': baseSubtotal,
       'discountApplied': discountApplied,
       'discountPercent': discountPercent,

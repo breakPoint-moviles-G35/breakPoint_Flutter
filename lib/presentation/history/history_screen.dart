@@ -217,10 +217,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // Preparar datos serializables para el isolate
       // IMPORTANTE: Solo pasar datos primitivos, no objetos complejos
       final reservationsData = reservations.map((r) {
-        // Usar totalAmount si está disponible y > 0, sino usar baseSubtotal
+        // Prioridad: totalAmount > baseSubtotal > spacePrice > 0
         // Esto asegura que siempre tengamos un monto válido para sumar
-        final amount = r.totalAmount > 0 ? r.totalAmount : (r.baseSubtotal > 0 ? r.baseSubtotal : 0.0);
-        print('🔹 Reserva: totalAmount=${r.totalAmount}, baseSubtotal=${r.baseSubtotal}, usando=$amount');
+        double amount = 0.0;
+        if (r.totalAmount > 0) {
+          amount = r.totalAmount;
+        } else if (r.baseSubtotal > 0) {
+          amount = r.baseSubtotal;
+        } else if (r.spacePrice != null && r.spacePrice! > 0) {
+          amount = r.spacePrice!;
+        }
+        print('🔹 Reserva: totalAmount=${r.totalAmount}, baseSubtotal=${r.baseSubtotal}, spacePrice=${r.spacePrice}, usando=$amount');
         return {
           'dayOfWeek': r.slotStart.weekday, // 1=Lunes, 7=Domingo
           'hour': r.slotStart.hour,
