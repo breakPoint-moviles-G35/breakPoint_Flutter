@@ -167,9 +167,12 @@ class ReservationViewModel extends ChangeNotifier {
       
       // Validar que la hora no haya pasado (con margen de 1 hora)
       if (_isTimeInPast(dateTimeLocal)) {
-        final now = DateTime.now(); // Esto ya está en hora local
-        final minHour = now.add(const Duration(hours: 1));
-        // Formatear la hora en formato 12 horas (AM/PM) - asegurarse de usar hora local
+        // Asegurarse de usar hora local explícitamente
+        final now = DateTime.now();
+        // Si por alguna razón now está en UTC, convertir a local
+        final nowLocal = now.isUtc ? now.toLocal() : now;
+        final minHour = nowLocal.add(const Duration(hours: 1));
+        // Formatear la hora en formato 12 horas (AM/PM)
         final hour12 = minHour.hour > 12 ? minHour.hour - 12 : (minHour.hour == 0 ? 12 : minHour.hour);
         final period = minHour.hour >= 12 ? 'PM' : 'AM';
         errorMessage = 'La hora de inicio debe ser al menos 1 hora en el futuro. Hora mínima: $hour12:${minHour.minute.toString().padLeft(2, '0')} $period';
