@@ -8,8 +8,24 @@ import 'package:breakpoint/presentation/widgets/recommendation_card.dart';
 import 'package:breakpoint/presentation/details/space_detail_screen.dart';
 import 'package:breakpoint/presentation/explore/viewmodel/explore_viewmodel.dart';
 
-class ExploreScreen extends StatelessWidget {
+class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
+
+  @override
+  State<ExploreScreen> createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends State<ExploreScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Recargar datos cuando se entra a la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<ExploreViewModel>();
+      vm.load();
+      vm.loadRecommendations();
+    });
+  }
 
   Future<void> _openFilters(BuildContext context, ExploreViewModel vm) async {
     final picked = await Navigator.pushNamed(context, AppRouter.filters) as DateTimeRange?;
@@ -241,7 +257,9 @@ class ExploreScreen extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         onDestinationSelected: (i) {
-          if (i == 2) {
+          if (i == 1) {
+            Navigator.pushReplacementNamed(context, AppRouter.rate);
+          } else if (i == 2) {
             Navigator.pushReplacementNamed(context, AppRouter.reservations);
           } else if (i == 3) {
             Navigator.pushReplacementNamed(context, AppRouter.profile);

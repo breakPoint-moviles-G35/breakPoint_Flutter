@@ -19,6 +19,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Recargar datos cuando se entra a la pantalla
+      final vm = context.read<ReservationsViewModel>();
+      vm.load();
       _startNfcListening();
     });
   }
