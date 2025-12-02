@@ -1,15 +1,10 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
-import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
 import 'package:breakpoint/presentation/widgets/offline_banner.dart';
+import 'package:breakpoint/presentation/rate/viewmodel/rate_viewmodel.dart';
 import 'package:breakpoint/routes/app_router.dart';
 
 class RateScreen extends StatefulWidget {
@@ -20,182 +15,24 @@ class RateScreen extends StatefulWidget {
 }
 
 class _RateScreenState extends State<RateScreen> {
-  bool isLoading = false;
-  String? error;
-  bool isOffline = false;
-  List<Reservation> closed = [];
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-
   @override
   void initState() {
     super.initState();
-    _initConnectivity();
-    _load();
-  }
-
-  void _initConnectivity() {
-    Connectivity().checkConnectivity().then((status) {
-      setState(() {
-        isOffline = status.contains(ConnectivityResult.none);
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<RateViewModel>();
+      vm.init();
     });
-
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
-      final hasNet = !result.contains(ConnectivityResult.none);
-      if (hasNet && isOffline) {
-        setState(() => isOffline = false);
-        _load();
-      } else if (!hasNet) {
-        setState(() => isOffline = true);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _connectivitySubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      setState(() { isLoading = true; error = null; });
-      
-      final reservationRepo = context.read<ReservationRepository>();
-      final reviewRepo = context.read<ReviewRepository>();
-      final authRepo = context.read<AuthRepository>();
-      final currentUser = authRepo.currentUser;
-
-      if (currentUser == null) {
-        setState(() {
-          error = 'Usuario no autenticado';
-          isLoading = false;
-        });
-        return;
-      }
-
-      // Verificar conectividad
-      final connectivity = await Connectivity().checkConnectivity();
-      final hasInternet = !connectivity.contains(ConnectivityResult.none);
-      setState(() => isOffline = !hasInternet);
-
-      if (!hasInternet) {
-        // Sin internet: cargar desde cache
-        final cached = await _loadFromCache();
-        if (cached.isNotEmpty) {
-          setState(() {
-            closed = cached;
-            error = null;
-            isLoading = false;
-          });
-          return;
-        } else {
-          setState(() {
-            error = 'Sin conexión y sin datos guardados.';
-            isLoading = false;
-          });
-          return;
-        }
-      }
-
-      // Obtener todas las reservas cerradas
-      final allClosed = await reservationRepo.getClosedReservations();
-
-      // Filtrar solo las que NO tienen review del usuario actual
-      final closedWithoutReview = <Reservation>[];
-      
-      for (final reservation in allClosed) {
-        try {
-          // Obtener todas las reviews del espacio
-          final reviews = await reviewRepo.getReviewsBySpace(reservation.spaceId);
-          
-          // Verificar si el usuario actual tiene una review para este espacio
-          final hasUserReview = reviews.any((review) => review.userId == currentUser.id);
-          
-          // Solo agregar si NO tiene review
-          if (!hasUserReview) {
-            closedWithoutReview.add(reservation);
-          }
-        } catch (e) {
-          // Si hay error al obtener reviews, asumir que no tiene review y agregar
-          print('Error al verificar reviews para espacio ${reservation.spaceId}: $e');
-          closedWithoutReview.add(reservation);
-        }
-      }
-
-      // Guardar en cache
-      await _saveToCache(closedWithoutReview);
-
-      setState(() {
-        closed = closedWithoutReview;
-        error = null;
-        isLoading = false;
-      });
-    } catch (e) {
-      // Intentar cargar desde cache si hubo error
-      final cached = await _loadFromCache();
-      if (cached.isNotEmpty) {
-        setState(() {
-          closed = cached;
-          error = null;
-          isOffline = true;
-        });
-      } else {
-        setState(() {
-          error = 'Error al cargar reservas cerradas: $e';
-          isOffline = true;
-        });
-      }
-      if (mounted) setState(() { isLoading = false; });
-    }
-  }
-
-  Future<void> _saveToCache(List<Reservation> items) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final list = items.map((r) => r.toJson()).toList();
-      await prefs.setString('cached_rate_reservations', jsonEncode(list));
-      await prefs.setInt(
-        'cached_rate_reservations_time',
-        DateTime.now().millisecondsSinceEpoch,
-      );
-    } catch (_) {}
-  }
-
-  Future<List<Reservation>> _loadFromCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('cached_rate_reservations');
-      if (jsonStr == null || jsonStr.isEmpty) return [];
-
-      final list = jsonDecode(jsonStr) as List;
-      return list.map((json) => Reservation.fromJson(json as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
-  Future<void> _retry() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    final hasNetwork = !connectivity.contains(ConnectivityResult.none);
-    setState(() => isOffline = !hasNetwork);
-    if (hasNetwork) {
-      await _load();
-    } else {
-      final cached = await _loadFromCache();
-      setState(() {
-        closed = cached;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<RateViewModel>();
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rate your stays'),
         actions: [
-          if (isOffline)
+          if (vm.isOffline)
             const Padding(
               padding: EdgeInsets.only(right: 8.0),
               child: Icon(Icons.cloud_off, color: Colors.redAccent),
@@ -207,53 +44,53 @@ class _RateScreenState extends State<RateScreen> {
           // Banner de desconexión
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
-            child: isOffline
-                ? OfflineBanner(onRetry: _retry)
+            child: vm.isOffline
+                ? OfflineBanner(onRetry: vm.retry)
                 : const SizedBox.shrink(),
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: vm.load,
               child: Builder(builder: (context) {
-          if (isLoading) return const Center(child: CircularProgressIndicator());
-          if (error != null) return Center(child: Text(error!));
-          if (closed.isEmpty) return const Center(child: Text('No tienes reservas para calificar.'));
+                if (vm.isLoading) return const Center(child: CircularProgressIndicator());
+                if (vm.error != null) return Center(child: Text(vm.error!));
+                if (vm.closed.isEmpty) return const Center(child: Text('No tienes reservas para calificar.'));
 
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            itemCount: closed.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
-            itemBuilder: (context, i) {
-              final r = closed[i];
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SpaceCard(
-                    title: r.spaceTitle,
-                    subtitle: '',
-                    rating: 0,
-                    priceCOP: null,
-                    metaLines: [
-                      _formatSlot(r),
-                      'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
-                    ],
-                    rightTag: 'Closed',
-                    imageAspectRatio: 16 / 9,
-                    imageUrl: r.spaceImageUrl,
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton(
-                      onPressed: () => _openCreateReview(context, r),
-                      child: const Text('Crear review'),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  itemCount: vm.closed.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, i) {
+                    final r = vm.closed[i];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SpaceCard(
+                          title: r.spaceTitle,
+                          subtitle: '',
+                          rating: 0,
+                          priceCOP: null,
+                          metaLines: [
+                            _formatSlot(r),
+                            'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
+                          ],
+                          rightTag: 'Closed',
+                          imageAspectRatio: 16 / 9,
+                          imageUrl: r.spaceImageUrl,
+                          onTap: () {},
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: OutlinedButton(
+                            onPressed: () => _openCreateReview(context, r, vm),
+                            child: const Text('Crear review'),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
               }),
             ),
           ),
@@ -289,7 +126,7 @@ class _RateScreenState extends State<RateScreen> {
     return 'Horas: $t · $day';
   }
 
-  Future<void> _openCreateReview(BuildContext context, Reservation r) async {
+  Future<void> _openCreateReview(BuildContext context, Reservation r, RateViewModel vm) async {
     final textCtrl = TextEditingController();
     int rating = 0;
     String? error;
@@ -328,7 +165,7 @@ class _RateScreenState extends State<RateScreen> {
                   const SnackBar(content: Text('Review creada correctamente')),
                 );
                 // Recargar la lista para que la reserva desaparezca de rate
-                _load();
+                vm.load();
               }
             } catch (e) {
               setMState(() => error = 'Error al crear review: $e');

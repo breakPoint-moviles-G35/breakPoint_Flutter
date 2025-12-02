@@ -1,16 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:breakpoint/domain/repositories/reservation_repository.dart';
-import 'package:breakpoint/domain/repositories/review_repository.dart';
-import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
 import 'package:breakpoint/presentation/widgets/offline_banner.dart';
+import 'package:breakpoint/presentation/history/viewmodel/history_viewmodel.dart';
 import 'package:breakpoint/routes/app_router.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -21,261 +14,25 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  bool isLoading = false;
-  String? error;
-  bool isOffline = false;
-  List<Reservation> historyReservations = [];
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  
-  // 🔹 Estadísticas calculadas en isolate
-  Map<String, dynamic>? _stats;
-
   @override
   void initState() {
     super.initState();
-    _initConnectivity();
-    _load();
-  }
-
-  void _initConnectivity() {
-    Connectivity().checkConnectivity().then((status) {
-      setState(() {
-        isOffline = status.contains(ConnectivityResult.none);
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<HistoryViewModel>();
+      vm.init();
     });
-
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
-      final hasNet = !result.contains(ConnectivityResult.none);
-      if (hasNet && isOffline) {
-        setState(() => isOffline = false);
-        _load();
-      } else if (!hasNet) {
-        setState(() => isOffline = true);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _connectivitySubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      setState(() {
-        isLoading = true;
-        error = null;
-      });
-
-      final reservationRepo = context.read<ReservationRepository>();
-      final reviewRepo = context.read<ReviewRepository>();
-      final authRepo = context.read<AuthRepository>();
-      final currentUser = authRepo.currentUser;
-
-      if (currentUser == null) {
-        setState(() {
-          error = 'Usuario no autenticado';
-          isLoading = false;
-        });
-        return;
-      }
-
-      // Verificar conectividad
-      final connectivity = await Connectivity().checkConnectivity();
-      final hasInternet = !connectivity.contains(ConnectivityResult.none);
-      setState(() => isOffline = !hasInternet);
-
-      if (!hasInternet) {
-        // Sin internet: cargar desde cache
-        final cached = await _loadFromCache();
-        if (cached.isNotEmpty) {
-          // Calcular estadísticas desde cache
-          await _calculateStats(cached);
-          setState(() {
-            historyReservations = cached;
-            error = null;
-            isLoading = false;
-          });
-          return;
-        } else {
-          setState(() {
-            error = 'Sin conexión y sin datos guardados.';
-            isLoading = false;
-          });
-          return;
-        }
-      }
-
-      // Obtener todas las reservas cerradas
-      final closedReservations = await reservationRepo.getClosedReservations();
-
-      // Filtrar las que tienen review del usuario actual
-      final reservationsWithReview = <Reservation>[];
-      
-      for (final reservation in closedReservations) {
-        try {
-          // Obtener todas las reviews del espacio
-          final reviews = await reviewRepo.getReviewsBySpace(reservation.spaceId);
-          
-          // Verificar si el usuario actual tiene una review para este espacio
-          final hasUserReview = reviews.any((review) => review.userId == currentUser.id);
-          
-          if (hasUserReview) {
-            reservationsWithReview.add(reservation);
-          }
-        } catch (e) {
-          // Si hay error al obtener reviews, ignorar esta reserva
-        }
-      }
-
-      // Guardar en cache
-      await _saveToCache(reservationsWithReview);
-
-      // 🔹 ESTRATEGIA DE MULTI-THREADING: Calcular estadísticas en isolate
-      if (reservationsWithReview.isNotEmpty) {
-        await _calculateStats(reservationsWithReview);
-      } else {
-        // Si no hay reservas, limpiar estadísticas
-        setState(() {
-          _stats = null;
-        });
-      }
-
-      setState(() {
-        historyReservations = reservationsWithReview;
-        error = null;
-        isLoading = false;
-      });
-    } catch (e) {
-      // Intentar cargar desde cache si hubo error
-      final cached = await _loadFromCache();
-      if (cached.isNotEmpty) {
-        // Calcular estadísticas desde cache
-        await _calculateStats(cached);
-        setState(() {
-          historyReservations = cached;
-          error = null;
-          isOffline = true;
-        });
-      } else {
-        setState(() {
-          error = 'Error al cargar historial: $e';
-          isOffline = true;
-        });
-      }
-      setState(() => isLoading = false);
-    }
-  }
-
-  Future<void> _saveToCache(List<Reservation> items) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final list = items.map((r) => r.toJson()).toList();
-      await prefs.setString('cached_history_reservations', jsonEncode(list));
-      await prefs.setInt(
-        'cached_history_reservations_time',
-        DateTime.now().millisecondsSinceEpoch,
-      );
-    } catch (_) {}
-  }
-
-  Future<List<Reservation>> _loadFromCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('cached_history_reservations');
-      if (jsonStr == null || jsonStr.isEmpty) return [];
-
-      final list = jsonDecode(jsonStr) as List;
-      return list.map((json) => Reservation.fromJson(json as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
-  Future<void> _retry() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    final hasNetwork = !connectivity.contains(ConnectivityResult.none);
-    setState(() => isOffline = !hasNetwork);
-    if (hasNetwork) {
-      await _load();
-    } else {
-      final cached = await _loadFromCache();
-      setState(() {
-        historyReservations = cached;
-      });
-      if (cached.isNotEmpty) {
-        await _calculateStats(cached);
-      }
-    }
-  }
-
-  /// 🔹 Calcula estadísticas usando isolate para no bloquear el hilo principal
-  Future<void> _calculateStats(List<Reservation> reservations) async {
-    try {
-      // Preparar datos serializables para el isolate
-      // IMPORTANTE: Solo pasar datos primitivos, no objetos complejos
-      final reservationsData = reservations.map((r) {
-        return {
-          'dayOfWeek': r.slotStart.weekday, // 1=Lunes, 7=Domingo
-          'hour': r.slotStart.hour,
-        };
-      }).toList();
-
-      // Usar compute de Flutter que maneja isolates de forma segura
-      // compute NO captura contexto, solo pasa los datos directamente
-      final stats = await compute(_HistoryStatsProcessor.process, reservationsData);
-
-      if (mounted) {
-        setState(() {
-          _stats = stats;
-        });
-      }
-    } catch (e) {
-      // Error al calcular estadísticas - ignorar
-    }
-  }
-
-  String _formatDayOfWeek(int day) {
-    const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    return days[day - 1];
-  }
-
-  String _formatFavoriteDays(List<int> days) {
-    if (days.isEmpty) return 'N/A';
-    if (days.length == 1) {
-      return _formatDayOfWeek(days.first);
-    }
-    // Si hay empate, mostrar varios días
-    return days.map((d) => _formatDayOfWeek(d)).join(', ');
-  }
-
-  String _formatFavoriteHours(List<int> hours) {
-    if (hours.isEmpty) return 'N/A';
-    if (hours.length == 1) {
-      return '${hours.first.toString().padLeft(2, '0')}:00';
-    }
-    // Si hay empate o no se repite una hora específica, mostrar rango
-    hours.sort();
-    final min = hours.first;
-    final max = hours.last;
-    if (max - min <= 2) {
-      // Si están cerca, mostrar todas
-      return hours.map((h) => '${h.toString().padLeft(2, '0')}:00').join(', ');
-    } else {
-      // Si están lejos, mostrar rango
-      return '${min.toString().padLeft(2, '0')}:00 - ${max.toString().padLeft(2, '0')}:00';
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<HistoryViewModel>();
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Historial de Reservas'),
         centerTitle: true,
         actions: [
-          if (isOffline)
+          if (vm.isOffline)
             const Padding(
               padding: EdgeInsets.only(right: 8.0),
               child: Icon(Icons.cloud_off, color: Colors.redAccent),
@@ -287,24 +44,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
           // Banner de desconexión
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
-            child: isOffline
-                ? OfflineBanner(onRetry: _retry)
+            child: vm.isOffline
+                ? OfflineBanner(onRetry: vm.retry)
                 : const SizedBox.shrink(),
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: vm.load,
               child: Builder(builder: (context) {
-                if (isLoading) {
+                if (vm.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 
-                if (error != null) {
+                if (vm.error != null) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
-                        error!,
+                        vm.error!,
                         style: const TextStyle(color: Colors.redAccent, fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
@@ -312,7 +69,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   );
                 }
                 
-                if (historyReservations.isEmpty) {
+                if (vm.historyReservations.isEmpty) {
                   return const Center(
                     child: Text(
                       'No tienes reservas en tu historial aún.',
@@ -324,16 +81,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 return ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                  itemCount: historyReservations.length + (_stats != null ? 1 : 0),
+                  itemCount: vm.historyReservations.length + (vm.stats != null ? 1 : 0),
                   itemBuilder: (context, index) {
                     // Mostrar estadísticas como primer item (barra superior)
-                    if (_stats != null && index == 0) {
-                      return _HistoryStatsHeader(stats: _stats!);
+                    if (vm.stats != null && index == 0) {
+                      return _HistoryStatsHeader(stats: vm.stats!);
                     }
                     
                     // Ajustar índice para las reservas
-                    final reservationIndex = _stats != null ? index - 1 : index;
-                    final r = historyReservations[reservationIndex];
+                    final reservationIndex = vm.stats != null ? index - 1 : index;
+                    final r = vm.historyReservations[reservationIndex];
                     
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -392,59 +149,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 }
 
-/// 🔹 Clase estática separada para procesar estadísticas en isolate
-/// Esta clase NO puede tener referencias a ningún contexto de la UI
-class _HistoryStatsProcessor {
-  /// 🔹 Función estática que se ejecuta en el isolate
-  /// Procesa las estadísticas de reservas sin bloquear el hilo principal
-  static Map<String, dynamic> process(List<Map<String, dynamic>> reservationsData) {
-    if (reservationsData.isEmpty) {
-      return {
-        'favoriteDays': [],
-        'favoriteHours': [],
-      };
-    }
-
-    // 1. Días favoritos (día de la semana)
-    final Map<int, int> dayCount = {};
-    for (final r in reservationsData) {
-      final day = r['dayOfWeek'] as int;
-      dayCount[day] = (dayCount[day] ?? 0) + 1;
-    }
-
-    // Encontrar días favoritos (puede haber empate)
-    final dayEntries = dayCount.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    final maxDayCount = dayEntries.isNotEmpty ? dayEntries.first.value : 0;
-    final favoriteDays = dayEntries
-        .where((e) => e.value == maxDayCount)
-        .map((e) => e.key)
-        .toList();
-
-    // 2. Horas favoritas
-    final Map<int, int> hourCount = {};
-    for (final r in reservationsData) {
-      final hour = r['hour'] as int;
-      hourCount[hour] = (hourCount[hour] ?? 0) + 1;
-    }
-
-    final hourEntries = hourCount.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    final maxHourCount = hourEntries.isNotEmpty ? hourEntries.first.value : 0;
-    final favoriteHours = hourEntries
-        .where((e) => e.value == maxHourCount)
-        .map((e) => e.key)
-        .toList()
-      ..sort();
-
-    return {
-      'favoriteDays': favoriteDays,
-      'favoriteHours': favoriteHours,
-    };
-  }
-}
 
 /// 🔹 Widget para mostrar estadísticas como barra superior (similar a Host)
 class _HistoryStatsHeader extends StatelessWidget {

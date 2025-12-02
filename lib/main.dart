@@ -28,7 +28,9 @@ import 'package:breakpoint/presentation/map/map_screen.dart';
 import 'package:breakpoint/presentation/profile/profile_screen.dart';
 import 'package:breakpoint/presentation/profile/change_password_screen.dart';
 import 'package:breakpoint/presentation/rate/rate_screen.dart';
+import 'package:breakpoint/presentation/rate/viewmodel/rate_viewmodel.dart';
 import 'package:breakpoint/presentation/history/history_screen.dart';
+import 'package:breakpoint/presentation/history/viewmodel/history_viewmodel.dart';
 import 'package:breakpoint/presentation/reservations/reservation_screen.dart';
 import 'package:breakpoint/presentation/reservations/reservations_screen.dart';
 import 'package:breakpoint/presentation/reservations/viewmodel/reservations_viewmodel.dart';
@@ -90,6 +92,21 @@ Future<void> main() async {
           create: (context) => ReservationsViewModel(
             context.read<ReservationRepository>(),
             context.read<NfcService>(),
+          ),
+        ),
+        // 🔹 ViewModels con gestión de almacenamiento local
+        ChangeNotifierProvider(
+          create: (context) => RateViewModel(
+            reservationRepo: context.read<ReservationRepository>(),
+            reviewRepo: context.read<ReviewRepository>(),
+            authRepo: context.read<AuthRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => HistoryViewModel(
+            reservationRepo: context.read<ReservationRepository>(),
+            reviewRepo: context.read<ReviewRepository>(),
+            authRepo: context.read<AuthRepository>(),
           ),
         ),
       ],
