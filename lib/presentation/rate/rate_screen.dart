@@ -1,10 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
 import 'package:breakpoint/domain/repositories/auth_repository.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
+import 'package:breakpoint/presentation/widgets/offline_banner.dart';
 import 'package:breakpoint/routes/app_router.dart';
 
 class RateScreen extends StatefulWidget {
@@ -17,17 +22,45 @@ class RateScreen extends StatefulWidget {
 class _RateScreenState extends State<RateScreen> {
   bool isLoading = false;
   String? error;
+  bool isOffline = false;
   List<Reservation> closed = [];
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
+    _initConnectivity();
     _load();
+  }
+
+  void _initConnectivity() {
+    Connectivity().checkConnectivity().then((status) {
+      setState(() {
+        isOffline = status.contains(ConnectivityResult.none);
+      });
+    });
+
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+      final hasNet = !result.contains(ConnectivityResult.none);
+      if (hasNet && isOffline) {
+        setState(() => isOffline = false);
+        _load();
+      } else if (!hasNet) {
+        setState(() => isOffline = true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
     try {
       setState(() { isLoading = true; error = null; });
+      
       final reservationRepo = context.read<ReservationRepository>();
       final reviewRepo = context.read<ReviewRepository>();
       final authRepo = context.read<AuthRepository>();
@@ -39,6 +72,30 @@ class _RateScreenState extends State<RateScreen> {
           isLoading = false;
         });
         return;
+      }
+
+      // Verificar conectividad
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasInternet = !connectivity.contains(ConnectivityResult.none);
+      setState(() => isOffline = !hasInternet);
+
+      if (!hasInternet) {
+        // Sin internet: cargar desde cache
+        final cached = await _loadFromCache();
+        if (cached.isNotEmpty) {
+          setState(() {
+            closed = cached;
+            error = null;
+            isLoading = false;
+          });
+          return;
+        } else {
+          setState(() {
+            error = 'Sin conexión y sin datos guardados.';
+            isLoading = false;
+          });
+          return;
+        }
       }
 
       // Obtener todas las reservas cerradas
@@ -66,23 +123,98 @@ class _RateScreenState extends State<RateScreen> {
         }
       }
 
+      // Guardar en cache
+      await _saveToCache(closedWithoutReview);
+
       setState(() {
         closed = closedWithoutReview;
+        error = null;
         isLoading = false;
       });
     } catch (e) {
-      error = 'Error al cargar reservas cerradas: $e';
+      // Intentar cargar desde cache si hubo error
+      final cached = await _loadFromCache();
+      if (cached.isNotEmpty) {
+        setState(() {
+          closed = cached;
+          error = null;
+          isOffline = true;
+        });
+      } else {
+        setState(() {
+          error = 'Error al cargar reservas cerradas: $e';
+          isOffline = true;
+        });
+      }
       if (mounted) setState(() { isLoading = false; });
+    }
+  }
+
+  Future<void> _saveToCache(List<Reservation> items) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = items.map((r) => r.toJson()).toList();
+      await prefs.setString('cached_rate_reservations', jsonEncode(list));
+      await prefs.setInt(
+        'cached_rate_reservations_time',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (_) {}
+  }
+
+  Future<List<Reservation>> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('cached_rate_reservations');
+      if (jsonStr == null || jsonStr.isEmpty) return [];
+
+      final list = jsonDecode(jsonStr) as List;
+      return list.map((json) => Reservation.fromJson(json as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _retry() async {
+    final connectivity = await Connectivity().checkConnectivity();
+    final hasNetwork = !connectivity.contains(ConnectivityResult.none);
+    setState(() => isOffline = !hasNetwork);
+    if (hasNetwork) {
+      await _load();
+    } else {
+      final cached = await _loadFromCache();
+      setState(() {
+        closed = cached;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Rate your stays')),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: Builder(builder: (context) {
+      appBar: AppBar(
+        title: const Text('Rate your stays'),
+        actions: [
+          if (isOffline)
+            const Padding(
+              padding: EdgeInsets.only(right: 8.0),
+              child: Icon(Icons.cloud_off, color: Colors.redAccent),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Banner de desconexión
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: isOffline
+                ? OfflineBanner(onRetry: _retry)
+                : const SizedBox.shrink(),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              child: Builder(builder: (context) {
           if (isLoading) return const Center(child: CircularProgressIndicator());
           if (error != null) return Center(child: Text(error!));
           if (closed.isEmpty) return const Center(child: Text('No tienes reservas para calificar.'));
@@ -122,7 +254,10 @@ class _RateScreenState extends State<RateScreen> {
               );
             },
           );
-        }),
+              }),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 1,
