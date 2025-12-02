@@ -216,10 +216,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       // Preparar datos serializables para el isolate
       // IMPORTANTE: Solo pasar datos primitivos, no objetos complejos
-      final reservationsData = reservations.map((r) => {
-        'dayOfWeek': r.slotStart.weekday, // 1=Lunes, 7=Domingo
-        'hour': r.slotStart.hour,
-        'totalAmount': r.totalAmount,
+      final reservationsData = reservations.map((r) {
+        // Usar totalAmount si está disponible y > 0, sino usar baseSubtotal
+        // Esto asegura que siempre tengamos un monto válido para sumar
+        final amount = r.totalAmount > 0 ? r.totalAmount : (r.baseSubtotal > 0 ? r.baseSubtotal : 0.0);
+        print('🔹 Reserva: totalAmount=${r.totalAmount}, baseSubtotal=${r.baseSubtotal}, usando=$amount');
+        return {
+          'dayOfWeek': r.slotStart.weekday, // 1=Lunes, 7=Domingo
+          'hour': r.slotStart.hour,
+          'totalAmount': amount,
+        };
       }).toList();
 
       // Usar compute de Flutter que maneja isolates de forma segura
