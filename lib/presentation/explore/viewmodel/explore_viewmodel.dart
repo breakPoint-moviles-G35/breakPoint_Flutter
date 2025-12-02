@@ -34,8 +34,8 @@ class ExploreViewModel extends ChangeNotifier {
 
   // Instancia del repositorio de reviews
   final ReviewRepositoryImpl _reviewRepo =
-      ReviewRepositoryImpl(ReviewApi(Dio(BaseOptions(baseUrl:'http://10.247.220.247:3000'))));
 
+      ReviewRepositoryImpl(ReviewApi(Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'))));
   // -------------------------------------------------------
   // Cargar espacios normales con rating real
   // -------------------------------------------------------

@@ -93,9 +93,17 @@ class _HostSpacesScreenState extends State<HostSpacesScreen> {
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.all(12),
-                              itemCount: vm.mySpaces.length,
+                              itemCount: vm.mySpaces.length + 1, 
                               itemBuilder: (context, index) {
-                                final space = vm.mySpaces[index];
+                                if (index == 0) {
+                                  // Mostrar estadísticas generadas por el isolate
+                                  if (vm.stats == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return _HostStatsHeader(stats: vm.stats!);
+                                }
+
+                                final space = vm.mySpaces[index - 1];
                                 return _SpaceCard(space: space);
                               },
                             ),
@@ -198,6 +206,89 @@ class _SpaceCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+///                 WIDGET NUEVO — HEADER DE ESTADÍSTICAS
+
+
+class _HostStatsHeader extends StatelessWidget {
+  final HostSpacesStats stats;
+
+  const _HostStatsHeader({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _StatItem(
+              label: "Espacios",
+              value: stats.totalSpaces.toString(),
+              color: const Color(0xFF5C1B6C),
+            ),
+            _StatItem(
+              label: "Capacidad",
+              value: stats.totalCapacity.toString(),
+              color: Colors.blue,
+            ),
+            _StatItem(
+              label: "Precio prom.",
+              value: "\$${stats.avgPrice.toStringAsFixed(0)}",
+              color: Colors.green,
+            ),
+            _StatItem(
+              label: "Rating prom.",
+              value: stats.avgRating.toStringAsFixed(1),
+              color: Colors.orange,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }
