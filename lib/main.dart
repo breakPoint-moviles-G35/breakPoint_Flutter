@@ -18,6 +18,8 @@ import 'package:breakpoint/domain/repositories/space_repository.dart';
 import 'package:breakpoint/presentation/details/space_detail_screen.dart';
 import 'package:breakpoint/presentation/explore/explore_screen.dart';
 import 'package:breakpoint/presentation/explore/viewmodel/explore_viewmodel.dart';
+import 'package:breakpoint/presentation/faq/faq_list_screen.dart';
+import 'package:breakpoint/presentation/faq/faq_thread_screen.dart';
 import 'package:breakpoint/presentation/filters/date_filter_screen.dart';
 import 'package:breakpoint/presentation/host/create_space_screen.dart';
 import 'package:breakpoint/presentation/host/host_spaces_screen.dart';
@@ -37,6 +39,12 @@ import 'package:breakpoint/presentation/reservations/viewmodel/reservations_view
 import 'package:breakpoint/routes/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import 'package:breakpoint/presentation/faq/viewmodel/faq_viewmodel.dart';
+import 'package:breakpoint/data/services/faq_api.dart';
+import 'package:breakpoint/data/repositories/faq_repository_impl.dart';
+import 'package:breakpoint/domain/repositories/faq_repository.dart';
+
 
 import 'core/constants/api_constants.dart';
 import 'core/network/dio_client.dart';
@@ -68,6 +76,9 @@ Future<void> main() async {
   final reviewApi = ReviewApi(dioClient.dio);
   final reviewRepo = ReviewRepositoryImpl(reviewApi);
 
+  final faqApi = FaqApi(dioClient.dio);
+  final faqRepo = FaqRepositoryImpl(faqApi);
+
   final nfcService = NfcService();
 
   runApp(
@@ -88,6 +99,7 @@ Future<void> main() async {
         Provider<SpaceRepository>(create: (_) => spaceRepo),
         Provider<AuthRepository>(create: (_) => authRepo),
         Provider<NfcService>(create: (_) => nfcService),
+        Provider<FaqRepository>(create: (_) => faqRepo),
         ChangeNotifierProvider(
           create: (context) => ReservationsViewModel(
             context.read<ReservationRepository>(),
@@ -109,6 +121,13 @@ Future<void> main() async {
             authRepo: context.read<AuthRepository>(),
           ),
         ),
+
+        ChangeNotifierProvider(
+  create: (context) => FaqViewModel(
+    faqRepository: context.read<FaqRepository>(),
+  ),
+),
+
       ],
       child: MyApp(authRepo: authRepo),
     ),
@@ -157,6 +176,11 @@ class MyApp extends StatelessWidget {
         AppRouter.profile: (context) => const ProfileScreen(),
         AppRouter.history: (context) => const HistoryScreen(),
         AppRouter.map: (_) => const MapScreen(),
+        AppRouter.faq: (_) => const FaqListScreen(),
+        AppRouter.faqThread: (context) {
+  final id = ModalRoute.of(context)!.settings.arguments as String;
+  return FaqThreadScreen(id: id);
+},
         AppRouter.changePassword: (context) => const ChangePasswordScreen(),
         AppRouter.spaceDetail: (context) => SpaceDetailScreen(
               space: Space(
