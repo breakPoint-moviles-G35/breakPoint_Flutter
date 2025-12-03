@@ -1,3 +1,4 @@
+// domain/entities/faq.dart
 class FaqAnswer {
   final String id;
   final String text;
@@ -15,9 +16,19 @@ class FaqAnswer {
     return FaqAnswer(
       id: json['id'],
       text: json['text'],
-      authorName: json['author']?['name'] ?? '',
+      // Soporta tanto respuesta del backend como desde el cache local
+      authorName: json['author']?['name'] ?? json['authorName'] ?? '',
       authorId: json['authorId'] ?? json['author_id'] ?? '',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'text': text,
+      'authorName': authorName,
+      'authorId': authorId,
+    };
   }
 }
 
@@ -44,10 +55,24 @@ class FaqQuestion {
       title: json['title'],
       question: json['question'],
       authorId: json['authorId'] ?? json['author_id'] ?? '',
-      authorName: json['author']?['name'] ?? '',
+      // Soporta tanto backend (author.name) como cache local (authorName)
+      authorName: json['author']?['name'] ?? json['authorName'] ?? '',
       answers: (json['answers'] as List? ?? [])
-          .map((e) => FaqAnswer.fromJson(e))
+          .map((e) => FaqAnswer.fromJson(
+                Map<String, dynamic>.from(e as Map),
+              ))
           .toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'question': question,
+      'authorId': authorId,
+      'authorName': authorName,
+      'answers': answers.map((a) => a.toJson()).toList(),
+    };
   }
 }
