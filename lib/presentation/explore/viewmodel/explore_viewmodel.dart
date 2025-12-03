@@ -36,7 +36,11 @@ class ExploreViewModel extends ChangeNotifier {
   final ReviewRepositoryImpl _reviewRepo =
       ReviewRepositoryImpl(ReviewApi(Dio(BaseOptions(baseUrl: 'http://10.0.2.2:3000'))));
 
-  
+  // 🔹 ESTRATEGIA DE CACHING: HashMap en memoria para ratings de espacios
+  // Clave: spaceId (String), Valor: rating (double)
+  final Map<String, double> _ratingCache = {};
+
+  // 🔹 Espacios vistos recientemente (funcionalidad del compañero)
   static const _kLastViewedKey = "last_viewed_spaces";
   List<Space> _lastViewed = [];
 
@@ -85,7 +89,7 @@ class ExploreViewModel extends ChangeNotifier {
   }
 
   // ============================================================
-  // Cargar espacios
+  // Cargar espacios normales con rating real
   // ============================================================
   Future<void> load() async {
     try {
@@ -94,7 +98,7 @@ class ExploreViewModel extends ChangeNotifier {
       notifyListeners();
 
       final connectivity = await Connectivity().checkConnectivity();
-      final hasInternet = connectivity != ConnectivityResult.none;
+      final hasInternet = !connectivity.contains(ConnectivityResult.none);
       isOffline = !hasInternet;
 
       if (!hasInternet) {
@@ -109,15 +113,31 @@ class ExploreViewModel extends ChangeNotifier {
           end: end,
         );
 
-        // cargar rating real
-        await Future.wait(spaces.map((space) async {
-          try {
-            final stats = await _reviewRepo.getSpaceStats(space.id.toString());
-            if (stats.containsKey("average_rating")) {
-              space.rating = (stats["average_rating"] ?? 0.0).toDouble();
-            }
-          } catch (_) {}
-        }));
+      // 2️⃣ Para cada espacio, traer el rating real desde Review API
+      // 🔹 Usar cache HashMap para evitar llamadas repetidas
+      await Future.wait(spaces.map((space) async {
+        try {
+          final spaceId = space.id.toString();
+          
+          // Verificar si el rating está en cache
+          if (_ratingCache.containsKey(spaceId)) {
+            space.rating = _ratingCache[spaceId]!;
+            return;
+          }
+          
+          // Si no está en cache, obtener de la API
+          final stats = await _reviewRepo.getSpaceStats(spaceId);
+          if (stats.containsKey("average_rating")) {
+            final rating = (stats["average_rating"] ?? 0.0).toDouble();
+            space.rating = rating;
+            // Guardar en cache
+            _ratingCache[spaceId] = rating;
+          }
+        } catch (e) {
+          // Ignorar errores individuales para no romper todo el ciclo
+          print("⚠️ Error al cargar rating del espacio ${space.id}: $e");
+        }
+      }));
 
         await _saveCachedSpaces(spaces);
       }
@@ -157,11 +177,25 @@ class ExploreViewModel extends ChangeNotifier {
 
       recommendations = await repo.getRecommendations(userId);
 
+      // 🔹 También actualizar rating real de los recomendados
+      // 🔹 Usar cache HashMap para evitar llamadas repetidas
       await Future.wait(recommendations.map((space) async {
         try {
-          final stats = await _reviewRepo.getSpaceStats(space.id.toString());
+          final spaceId = space.id.toString();
+          
+          // Verificar si el rating está en cache
+          if (_ratingCache.containsKey(spaceId)) {
+            space.rating = _ratingCache[spaceId]!;
+            return;
+          }
+          
+          // Si no está en cache, obtener de la API
+          final stats = await _reviewRepo.getSpaceStats(spaceId);
           if (stats.containsKey("average_rating")) {
-            space.rating = (stats["average_rating"] ?? 0.0).toDouble();
+            final rating = (stats["average_rating"] ?? 0.0).toDouble();
+            space.rating = rating;
+            // Guardar en cache
+            _ratingCache[spaceId] = rating;
           }
         } catch (_) {}
       }));
@@ -198,7 +232,7 @@ class ExploreViewModel extends ChangeNotifier {
 
   Future<void> retry() async {
     final connectivity = await Connectivity().checkConnectivity();
-    final hasInternet = connectivity != ConnectivityResult.none;
+    final hasInternet = !connectivity.contains(ConnectivityResult.none);
     isOffline = !hasInternet;
     if (hasInternet) {
       await load();

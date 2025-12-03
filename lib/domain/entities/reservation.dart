@@ -12,6 +12,7 @@ class Reservation {
   final String spaceId;
   final String spaceTitle;
   final String? spaceImageUrl;
+  final double? spacePrice; // Precio del espacio (del JSON space.price)
   final double baseSubtotal;
   final bool discountApplied;
   final double discountPercent;
@@ -29,6 +30,7 @@ class Reservation {
     required this.spaceId,
     required this.spaceTitle,
     this.spaceImageUrl,
+    this.spacePrice,
     required this.baseSubtotal,
     required this.discountApplied,
     required this.discountPercent,
@@ -77,16 +79,15 @@ class Reservation {
       spaceId: json['space']?['id']?.toString() ?? '',
       spaceTitle: json['space']?['title'] ?? '',
       spaceImageUrl: json['space']?['imageUrl'] ?? json['space']?['image_url'],
+      spacePrice: json['space']?['price'] != null ? _toDouble(json['space']?['price'], 0) : null,
       baseSubtotal: _toDouble(baseSubtotalValue, 0),
       discountApplied: _toBool(discountAppliedValue),
       discountPercent: _toDouble(discountPercentValue, 0),
       discountAmount: _toDouble(discountAmountValue, 0),
       totalAmount: _toDouble(totalAmountValue, 0),
       currency: json['currency'] ?? 'USD',
-      slotStart:
-          (DateTime.tryParse(slotStartValue ?? '') ?? DateTime.now()).toLocal(),
-      slotEnd:
-          (DateTime.tryParse(slotEndValue ?? '') ?? DateTime.now()).toLocal(),
+      slotStart: _parseDateTime(slotStartValue),
+      slotEnd: _parseDateTime(slotEndValue),
       status: _parseStatus(json['status']),
     );
   }
@@ -99,6 +100,7 @@ class Reservation {
       'spaceId': spaceId,
       'spaceTitle': spaceTitle,
       'spaceImageUrl': spaceImageUrl,
+      'spacePrice': spacePrice,
       'baseSubtotal': baseSubtotal,
       'discountApplied': discountApplied,
       'discountPercent': discountPercent,
@@ -109,6 +111,11 @@ class Reservation {
       'slotEnd': slotEnd.toIso8601String(),
       'status': status.name,
     };
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    return (DateTime.tryParse(value.toString()) ?? DateTime.now()).toLocal();
   }
 
   static ReservationStatus _parseStatus(String? value) {

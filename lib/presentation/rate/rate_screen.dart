@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:breakpoint/domain/repositories/reservation_repository.dart';
 import 'package:breakpoint/domain/repositories/review_repository.dart';
 import 'package:breakpoint/domain/entities/reservation.dart';
 import 'package:breakpoint/presentation/widgets/space_card.dart';
+import 'package:breakpoint/presentation/widgets/offline_banner.dart';
+import 'package:breakpoint/presentation/rate/viewmodel/rate_viewmodel.dart';
 import 'package:breakpoint/routes/app_router.dart';
 
 class RateScreen extends StatefulWidget {
@@ -14,75 +15,86 @@ class RateScreen extends StatefulWidget {
 }
 
 class _RateScreenState extends State<RateScreen> {
-  bool isLoading = false;
-  String? error;
-  List<Reservation> closed = [];
-
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      setState(() { isLoading = true; error = null; });
-      final repo = context.read<ReservationRepository>();
-      closed = await repo.getClosedReservations();
-    } catch (e) {
-      error = 'Error al cargar reservas cerradas: $e';
-    } finally {
-      if (mounted) setState(() { isLoading = false; });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<RateViewModel>();
+      vm.init();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<RateViewModel>();
+    
     return Scaffold(
-      appBar: AppBar(title: const Text('Rate your stays')),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: Builder(builder: (context) {
-          if (isLoading) return const Center(child: CircularProgressIndicator());
-          if (error != null) return Center(child: Text(error!));
-          if (closed.isEmpty) return const Center(child: Text('No tienes reservas para calificar.'));
+      appBar: AppBar(
+        title: const Text('Rate your stays'),
+        actions: [
+          if (vm.isOffline)
+            const Padding(
+              padding: EdgeInsets.only(right: 8.0),
+              child: Icon(Icons.cloud_off, color: Colors.redAccent),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Banner de desconexión
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: vm.isOffline
+                ? OfflineBanner(onRetry: vm.retry)
+                : const SizedBox.shrink(),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: vm.load,
+              child: Builder(builder: (context) {
+                if (vm.isLoading) return const Center(child: CircularProgressIndicator());
+                if (vm.error != null) return Center(child: Text(vm.error!));
+                if (vm.closed.isEmpty) return const Center(child: Text('No tienes reservas para calificar.'));
 
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            itemCount: closed.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
-            itemBuilder: (context, i) {
-              final r = closed[i];
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SpaceCard(
-                    title: r.spaceTitle,
-                    subtitle: '',
-                    rating: 0,
-                    priceCOP: null,
-                    metaLines: [
-                      _formatSlot(r),
-                      'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
-                    ],
-                    rightTag: 'Closed',
-                    imageAspectRatio: 16 / 9,
-                    imageUrl: r.spaceImageUrl,
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton(
-                      onPressed: () => _openCreateReview(context, r),
-                      child: const Text('Crear review'),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        }),
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  itemCount: vm.closed.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, i) {
+                    final r = vm.closed[i];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SpaceCard(
+                          title: r.spaceTitle,
+                          subtitle: '',
+                          rating: 0,
+                          priceCOP: null,
+                          metaLines: [
+                            _formatSlot(r),
+                            'Total: ${r.currency} ${r.totalAmount.toStringAsFixed(0)}',
+                          ],
+                          rightTag: 'Closed',
+                          imageAspectRatio: 16 / 9,
+                          imageUrl: r.spaceImageUrl,
+                          onTap: () {},
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: OutlinedButton(
+                            onPressed: () => _openCreateReview(context, r, vm),
+                            child: const Text('Crear review'),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 1,
@@ -114,7 +126,7 @@ class _RateScreenState extends State<RateScreen> {
     return 'Horas: $t · $day';
   }
 
-  Future<void> _openCreateReview(BuildContext context, Reservation r) async {
+  Future<void> _openCreateReview(BuildContext context, Reservation r, RateViewModel vm) async {
     final textCtrl = TextEditingController();
     int rating = 0;
     String? error;
@@ -152,6 +164,8 @@ class _RateScreenState extends State<RateScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Review creada correctamente')),
                 );
+                // Recargar la lista para que la reserva desaparezca de rate
+                vm.load();
               }
             } catch (e) {
               setMState(() => error = 'Error al crear review: $e');
