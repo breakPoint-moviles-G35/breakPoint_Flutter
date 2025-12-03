@@ -71,7 +71,7 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Cambiar contraseña (sin acción por ahora)
+              // Cambiar contraseña
               SizedBox(
                 width: 220,
                 child: ElevatedButton(
@@ -90,7 +90,26 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Cerrar sesión -> vuelve a login
+              // ⭐⭐⭐ NUEVO BOTÓN — Preguntas Frecuentes (FAQ) ⭐⭐⭐
+              SizedBox(
+                width: 220,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5C1B6C),
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRouter.faq);
+                  },
+                  child: const Text('Preguntas Frecuentes'),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Cerrar sesión
               SizedBox(
                 width: 220,
                 child: ElevatedButton(

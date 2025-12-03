@@ -14,6 +14,8 @@ class AppRouter {
   static const String history = '/history';
   static const String changePassword = '/change-password';
 
+  static const String faq = '/faq';
+  static const String faqThread = '/faq-thread';
   // 🔹 Host / Arrendador
   static const String hostSpaces = '/host-spaces';      // Lista de espacios del host
   static const String createSpace = '/create-space';    // Crear nuevo espacio
