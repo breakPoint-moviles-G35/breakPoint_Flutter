@@ -84,47 +84,8 @@ class ReservationViewModel extends ChangeNotifier {
 
     if (period == 'PM' && hour != 12) hour += 12;
     if (period == 'AM' && hour == 12) hour = 0;
-    
-    // Crear DateTime en hora local explícitamente
-    final dateTimeLocal = DateTime(
-      selectedDate.year, 
-      selectedDate.month, 
-      selectedDate.day, 
-      hour, 
-      minute
-    );
-    
-    // Convertir a UTC antes de enviar al backend
-    // Asegurarnos de que la conversión sea correcta
-    final dateTimeUtc = dateTimeLocal.toUtc();
-    return dateTimeUtc.toIso8601String();
-  }
-  
-  /// Valida que la hora seleccionada no haya pasado
-  /// Permite reservas con al menos 1 hora de anticipación
-  bool _isTimeInPast(DateTime dateTime) {
-    // Asegurarse de usar hora local
-    final now = DateTime.now(); // DateTime.now() ya devuelve hora local
-    // Agregar 1 hora de margen para evitar problemas de zona horaria
-    final minimumTime = now.add(const Duration(hours: 1));
-    
-    // Comparar solo fecha y hora, ignorando segundos y milisegundos
-    // Asegurarse de que ambos DateTime estén en hora local
-    final selected = DateTime(
-      dateTime.year,
-      dateTime.month,
-      dateTime.day,
-      dateTime.hour,
-      dateTime.minute,
-    );
-    final minimum = DateTime(
-      minimumTime.year,
-      minimumTime.month,
-      minimumTime.day,
-      minimumTime.hour,
-      minimumTime.minute,
-    );
-    return selected.isBefore(minimum);
+    final dateTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, hour, minute);
+    return dateTime.toIso8601String();
   }
 
   Future<void> pickDate(BuildContext context) async {
@@ -148,46 +109,13 @@ class ReservationViewModel extends ChangeNotifier {
       errorMessage = null;
       notifyListeners();
 
-      // Primero validar en hora local antes de convertir
-      final timeParts = selectedTime!.split(' ');
-      final time = timeParts[0].split(':');
-      final period = timeParts[1];
-      int hour = int.parse(time[0]);
-      final minute = int.parse(time[1]);
-      if (period == 'PM' && hour != 12) hour += 12;
-      if (period == 'AM' && hour == 12) hour = 0;
-      
-      final dateTimeLocal = DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-        hour,
-        minute,
-      );
-      
-      // Validar que la hora no haya pasado (con margen de 1 hora)
-      if (_isTimeInPast(dateTimeLocal)) {
-        // Asegurarse de usar hora local explícitamente
-        final now = DateTime.now();
-        // Si por alguna razón now está en UTC, convertir a local
-        final nowLocal = now.isUtc ? now.toLocal() : now;
-        final minHour = nowLocal.add(const Duration(hours: 1));
-        // Formatear la hora en formato 12 horas (AM/PM)
-        final hour12 = minHour.hour > 12 ? minHour.hour - 12 : (minHour.hour == 0 ? 12 : minHour.hour);
-        final period = minHour.hour >= 12 ? 'PM' : 'AM';
-        errorMessage = 'La hora de inicio debe ser al menos 1 hora en el futuro. Hora mínima: $hour12:${minHour.minute.toString().padLeft(2, '0')} $period';
-        return null;
-      }
-
-      // Convertir a UTC para enviar al backend
-      final start = dateTimeLocal.toUtc().toIso8601String();
-      final startUtc = DateTime.parse(start);
-      final endUtc = startUtc.add(Duration(hours: durationHours));
+      final start = _parseTimeToISO(selectedTime!);
+      final end = DateTime.parse(start).add(Duration(hours: durationHours));
 
       final reservation = await _repository.createReservation(
         spaceId: spaceId,
         slotStart: start,
-        slotEnd: endUtc.toIso8601String(),
+        slotEnd: end.toIso8601String(),
         guestCount: numberOfGuests,
       );
 
@@ -197,8 +125,6 @@ class ReservationViewModel extends ChangeNotifier {
       final msg = e.toString();
       if (msg.toLowerCase().contains('not available') || msg.toLowerCase().contains('overlap')) {
         errorMessage = 'El horario seleccionado ya está reservado. Prueba otra hora.';
-      } else if (msg.toLowerCase().contains('hora de inicio') || msg.toLowerCase().contains('start time')) {
-        errorMessage = 'La hora de inicio seleccionada ya ha pasado. Por favor selecciona una hora futura.';
       } else {
         errorMessage = 'Error al crear la reserva: $e';
       }

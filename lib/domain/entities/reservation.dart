@@ -115,39 +115,7 @@ class Reservation {
 
   static DateTime _parseDateTime(dynamic value) {
     if (value == null) return DateTime.now();
-    
-    final dateTimeStr = value.toString().trim();
-    if (dateTimeStr.isEmpty) return DateTime.now();
-    
-    // Si el string tiene 'Z' al final, es UTC explícito
-    if (dateTimeStr.endsWith('Z')) {
-      final parsed = DateTime.tryParse(dateTimeStr);
-      return parsed?.toLocal() ?? DateTime.now();
-    }
-    
-    // Si tiene offset de zona horaria (+/-HH:MM), parsear directamente
-    if (dateTimeStr.contains('+') || (dateTimeStr.contains('-') && dateTimeStr.length > 19)) {
-      final parsed = DateTime.tryParse(dateTimeStr);
-      return parsed?.toLocal() ?? DateTime.now();
-    }
-    
-    // Si no tiene indicador de zona horaria, asumir que viene en UTC del backend
-    // Parsear como si fuera UTC y luego convertir a local
-    final parsed = DateTime.tryParse(dateTimeStr);
-    if (parsed == null) return DateTime.now();
-    
-    // Si ya está marcado como UTC, solo convertir a local
-    if (parsed.isUtc) {
-      return parsed.toLocal();
-    }
-    
-    // Si no está marcado como UTC pero no tiene zona horaria en el string,
-    // asumir que el backend lo envió en UTC y crear un DateTime UTC explícito
-    final utcDateTime = DateTime.utc(
-      parsed.year, parsed.month, parsed.day,
-      parsed.hour, parsed.minute, parsed.second, parsed.millisecond, parsed.microsecond
-    );
-    return utcDateTime.toLocal();
+    return (DateTime.tryParse(value.toString()) ?? DateTime.now()).toLocal();
   }
 
   static ReservationStatus _parseStatus(String? value) {
